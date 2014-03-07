@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.metrics.termcount;
+package org.elasticsearch.search.aggregations.metrics.cardinality;
 
 import com.google.common.base.Preconditions;
 import org.apache.lucene.util.BytesRef;

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.metrics.termcount;
+package org.elasticsearch.search.aggregations.metrics.cardinality;
 
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -31,14 +31,14 @@ import org.elasticsearch.search.aggregations.support.numeric.ValueFormatterStrea
 import java.io.IOException;
 import java.util.List;
 
-public final class InternalTermCount extends MetricsAggregation.SingleValue implements TermCount {
+public final class InternalCardinality extends MetricsAggregation.SingleValue implements Cardinality {
 
-    public final static Type TYPE = new Type("term_count");
+    public final static Type TYPE = new Type("cardinality");
 
     public final static AggregationStreams.Stream STREAM = new AggregationStreams.Stream() {
         @Override
-        public InternalTermCount readResult(StreamInput in) throws IOException {
-            InternalTermCount result = new InternalTermCount();
+        public InternalCardinality readResult(StreamInput in) throws IOException {
+            InternalCardinality result = new InternalCardinality();
             result.readFrom(in);
             return result;
         }
@@ -50,12 +50,12 @@ public final class InternalTermCount extends MetricsAggregation.SingleValue impl
 
     private HyperLogLogPlusPlus counts;
 
-    InternalTermCount(String name, HyperLogLogPlusPlus counts) {
+    InternalCardinality(String name, HyperLogLogPlusPlus counts) {
         super(name);
         this.counts = counts;
     }
 
-    private InternalTermCount() {
+    private InternalCardinality() {
     }
 
     @Override
@@ -91,33 +91,33 @@ public final class InternalTermCount extends MetricsAggregation.SingleValue impl
     public InternalAggregation reduce(ReduceContext reduceContext) {
         List<InternalAggregation> aggregations = reduceContext.aggregations();
         if (aggregations.size() == 1) {
-            return (InternalTermCount) aggregations.get(0);
+            return (InternalCardinality) aggregations.get(0);
         }
 
-        InternalTermCount reduced = null;
+        InternalCardinality reduced = null;
         for (InternalAggregation aggregation : aggregations) {
-            final InternalTermCount termCount = (InternalTermCount) aggregation;
+            final InternalCardinality cardinality = (InternalCardinality) aggregation;
             if (reduced == null) {
-                reduced = termCount;
+                reduced = cardinality;
             } else {
-                reduced.merge(termCount);
+                reduced.merge(cardinality);
             }
         }
 
         return reduced;
     }
 
-    public void merge(InternalTermCount other) {
+    public void merge(InternalCardinality other) {
         counts.merge(other.counts, 0, 0);
     }
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject(name);
-        final long termCount = getValue();
-        builder.field(CommonFields.VALUE, termCount);
+        final long cardinality = getValue();
+        builder.field(CommonFields.VALUE, cardinality);
         if (valueFormatter != null) {
-            builder.field(CommonFields.VALUE_AS_STRING, valueFormatter.format(termCount));
+            builder.field(CommonFields.VALUE_AS_STRING, valueFormatter.format(cardinality));
         }
         builder.endObject();
         return builder;

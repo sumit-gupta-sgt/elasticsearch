@@ -17,28 +17,28 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.metrics.termcount;
+package org.elasticsearch.search.aggregations.metrics.cardinality;
 
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.aggregations.metrics.ValuesSourceMetricsAggregationBuilder;
 
 import java.io.IOException;
 
-public class TermCountBuilder extends ValuesSourceMetricsAggregationBuilder<TermCountBuilder> {
+public class CardinalityBuilder extends ValuesSourceMetricsAggregationBuilder<CardinalityBuilder> {
 
     private Integer precision;
     private Boolean rehash;
 
-    public TermCountBuilder(String name) {
-        super(name, InternalTermCount.TYPE.name());
+    public CardinalityBuilder(String name) {
+        super(name, InternalCardinality.TYPE.name());
     }
 
-    public TermCountBuilder precision(int precision) {
+    public CardinalityBuilder precision(int precision) {
         this.precision = precision;
         return this;
     }
 
-    public TermCountBuilder rehash(boolean rehash) {
+    public CardinalityBuilder rehash(boolean rehash) {
         this.rehash = rehash;
         return this;
     }

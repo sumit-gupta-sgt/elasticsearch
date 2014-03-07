@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.metrics.termcount;
+package org.elasticsearch.search.aggregations.metrics.cardinality;
 
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.Aggregator.BucketAggregationMode;
@@ -26,13 +26,13 @@ import org.elasticsearch.search.aggregations.support.ValueSourceAggregatorFactor
 import org.elasticsearch.search.aggregations.support.ValuesSource;
 import org.elasticsearch.search.aggregations.support.ValuesSourceConfig;
 
-final class TermCountAggregatorFactory extends ValueSourceAggregatorFactory<ValuesSource> {
+final class CardinalityAggregatorFactory extends ValueSourceAggregatorFactory<ValuesSource> {
 
     private final int precision;
     private final boolean rehash;
 
-    TermCountAggregatorFactory(String name, ValuesSourceConfig valuesSourceConfig, int precision, boolean rehash) {
-        super(name, InternalTermCount.TYPE.name(), valuesSourceConfig);
+    CardinalityAggregatorFactory(String name, ValuesSourceConfig valuesSourceConfig, int precision, boolean rehash) {
+        super(name, InternalCardinality.TYPE.name(), valuesSourceConfig);
         this.precision = precision;
         this.rehash = rehash;
     }
@@ -61,13 +61,13 @@ final class TermCountAggregatorFactory extends ValueSourceAggregatorFactory<Valu
 
     @Override
     protected Aggregator createUnmapped(AggregationContext context, Aggregator parent) {
-        return new TermCountAggregator(name, parent == null ? 1 : parent.estimatedBucketCount(), null, true, precision(parent), context, parent);
+        return new CardinalityAggregator(name, parent == null ? 1 : parent.estimatedBucketCount(), null, true, precision(parent), context, parent);
     }
 
     @Override
     protected Aggregator create(ValuesSource valuesSource, long expectedBucketsCount, AggregationContext context,
             Aggregator parent) {
-        return new TermCountAggregator(name, parent == null ? 1 : parent.estimatedBucketCount(), valuesSource, rehash, precision(parent), context, parent);
+        return new CardinalityAggregator(name, parent == null ? 1 : parent.estimatedBucketCount(), valuesSource, rehash, precision(parent), context, parent);
     }
 
 }

@@ -17,12 +17,12 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.metrics.termcount;
+package org.elasticsearch.search.aggregations.metrics.cardinality;
 
 import org.elasticsearch.search.aggregations.Aggregation;
 
 /** A number of unique terms. */
-public interface TermCount extends Aggregation {
+public interface Cardinality extends Aggregation {
 
     public long getValue();
 

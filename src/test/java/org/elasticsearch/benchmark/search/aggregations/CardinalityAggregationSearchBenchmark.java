@@ -30,7 +30,7 @@ import org.elasticsearch.common.StopWatch;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.node.Node;
-import org.elasticsearch.search.aggregations.metrics.termcount.TermCount;
+import org.elasticsearch.search.aggregations.metrics.cardinality.Cardinality;
 
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -41,12 +41,12 @@ import static org.elasticsearch.cluster.metadata.IndexMetaData.SETTING_NUMBER_OF
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
-import static org.elasticsearch.search.aggregations.AggregationBuilders.termCount;
+import static org.elasticsearch.search.aggregations.AggregationBuilders.cardinality;
 
-public class TermCountAggregationSearchBenchmark {
+public class CardinalityAggregationSearchBenchmark {
 
     private static final Random R = new Random();
-    private static final String CLUSTER_NAME = TermCountAggregationSearchBenchmark.class.getSimpleName();
+    private static final String CLUSTER_NAME = CardinalityAggregationSearchBenchmark.class.getSimpleName();
     private static final int NUM_DOCS = 10000000;
     private static final int LOW_CARD = 1000;
     private static final int HIGH_CARD = 1000000;
@@ -142,18 +142,18 @@ public class TermCountAggregationSearchBenchmark {
 
         for (int i = 0; i < WARM + RUNS; ++i) {
             if (i >= WARM) {
-                System.out.println("RUN " + (i -WARM));
+                System.out.println("RUN " + (i - WARM));
             }
             for (String field : new String[] {"low_card_str_value", "low_card_str_value.hash", "high_card_str_value", "high_card_str_value.hash", "low_card_num_value", "high_card_num_value"}) {
                 long start = System.nanoTime();
                 SearchResponse resp = null;
                 for (int j = 0; j < ITERS; ++j) {
-                    resp = client.prepareSearch("index").setSearchType(SearchType.COUNT).addAggregation(termCount("count").field(field)).execute().actionGet();
+                    resp = client.prepareSearch("index").setSearchType(SearchType.COUNT).addAggregation(cardinality("cardinality").field(field)).execute().actionGet();
                 }
                 long end = System.nanoTime();
-                final long termCount = ((TermCount) resp.getAggregations().get("count")).getValue();
+                final long cardinality = ((Cardinality) resp.getAggregations().get("cardinality")).getValue();
                 if (i >= WARM) {
-                    System.out.println(field + "\t" + new TimeValue((end - start) / ITERS, TimeUnit.NANOSECONDS) + "\tcount=" + termCount);
+                    System.out.println(field + "\t" + new TimeValue((end - start) / ITERS, TimeUnit.NANOSECONDS) + "\tcardinality=" + cardinality);
                 }
             }
         }

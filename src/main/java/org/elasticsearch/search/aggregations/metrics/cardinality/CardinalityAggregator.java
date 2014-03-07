@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.metrics.termcount;
+package org.elasticsearch.search.aggregations.metrics.cardinality;
 
 import com.carrotsearch.ant.tasks.junit4.dependencies.com.google.common.base.Preconditions;
 import com.carrotsearch.hppc.hash.MurmurHash3;
@@ -47,7 +47,7 @@ import java.io.IOException;
 /**
  * An aggregator that computes approximate counts of unique values.
  */
-public class TermCountAggregator extends MetricsAggregator.SingleValue {
+public class CardinalityAggregator extends MetricsAggregator.SingleValue {
 
     private final int precision;
     private final boolean rehash;
@@ -55,7 +55,7 @@ public class TermCountAggregator extends MetricsAggregator.SingleValue {
     private HyperLogLogPlusPlus counts;
     private Collector collector;
 
-    public TermCountAggregator(String name, long estimatedBucketsCount, ValuesSource valuesSource, boolean rehash, int precision, AggregationContext context, Aggregator parent) {
+    public CardinalityAggregator(String name, long estimatedBucketsCount, ValuesSource valuesSource, boolean rehash, int precision, AggregationContext context, Aggregator parent) {
         super(name, estimatedBucketsCount, context, parent);
         this.valuesSource = valuesSource;
         this.rehash = rehash;
@@ -191,12 +191,12 @@ public class TermCountAggregator extends MetricsAggregator.SingleValue {
         }
         HyperLogLogPlusPlus copy = new HyperLogLogPlusPlus(precision, BigArrays.NON_RECYCLING_INSTANCE, 1);
         copy.merge(counts, owningBucketOrdinal, 0);
-        return new InternalTermCount(name, copy);
+        return new InternalCardinality(name, copy);
     }
 
     @Override
     public InternalAggregation buildEmptyAggregation() {
-        return new InternalTermCount(name, new HyperLogLogPlusPlus(precision, BigArrays.NON_RECYCLING_INSTANCE, 1));
+        return new InternalCardinality(name, new HyperLogLogPlusPlus(precision, BigArrays.NON_RECYCLING_INSTANCE, 1));
     }
 
     @Override

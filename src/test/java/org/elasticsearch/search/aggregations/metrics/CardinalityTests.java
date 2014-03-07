@@ -24,21 +24,21 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
-import org.elasticsearch.search.aggregations.metrics.termcount.HyperLogLogPlusPlus;
-import org.elasticsearch.search.aggregations.metrics.termcount.TermCount;
+import org.elasticsearch.search.aggregations.metrics.cardinality.Cardinality;
+import org.elasticsearch.search.aggregations.metrics.cardinality.HyperLogLogPlusPlus;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.junit.Before;
 import org.junit.Test;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
-import static org.elasticsearch.search.aggregations.AggregationBuilders.termCount;
+import static org.elasticsearch.search.aggregations.AggregationBuilders.cardinality;
 import static org.elasticsearch.search.aggregations.AggregationBuilders.terms;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertSearchResponse;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.core.IsNull.notNullValue;
 
-public class TermCountTests extends ElasticsearchIntegrationTest {
+public class CardinalityTests extends ElasticsearchIntegrationTest {
 
     @Override
     public Settings indexSettings() {
@@ -118,7 +118,7 @@ public class TermCountTests extends ElasticsearchIntegrationTest {
         ensureSearchable();
     }
 
-    private void assertCount(TermCount count, long value) {
+    private void assertCount(Cardinality count, long value) {
         if (value <= (1 << precision) * 3 / 16) {
             // linear counting should be picked, and should be accurate
             assertEquals(value, count.getValue());
@@ -131,268 +131,268 @@ public class TermCountTests extends ElasticsearchIntegrationTest {
     @Test
     public void unmapped() throws Exception {
         SearchResponse response = client().prepareSearch("idx_unmapped").setTypes("type")
-                .addAggregation(termCount("count").precision(precision).field("str_value"))
+                .addAggregation(cardinality("cardinality").precision(precision).field("str_value"))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
-        TermCount count = response.getAggregations().get("count");
+        Cardinality count = response.getAggregations().get("cardinality");
         assertThat(count, notNullValue());
-        assertThat(count.getName(), equalTo("count"));
+        assertThat(count.getName(), equalTo("cardinality"));
         assertCount(count, 0);
     }
 
     @Test
     public void partiallyUnmapped() throws Exception {
         SearchResponse response = client().prepareSearch("idx", "idx_unmapped").setTypes("type")
-                .addAggregation(termCount("count").precision(precision).field("str_value"))
+                .addAggregation(cardinality("cardinality").precision(precision).field("str_value"))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
-        TermCount count = response.getAggregations().get("count");
+        Cardinality count = response.getAggregations().get("cardinality");
         assertThat(count, notNullValue());
-        assertThat(count.getName(), equalTo("count"));
+        assertThat(count.getName(), equalTo("cardinality"));
         assertCount(count, numDocs);
     }
 
     @Test
     public void singleValuedString() throws Exception {
         SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(termCount("count").precision(precision).field("str_value"))
+                .addAggregation(cardinality("cardinality").precision(precision).field("str_value"))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
-        TermCount count = response.getAggregations().get("count");
+        Cardinality count = response.getAggregations().get("cardinality");
         assertThat(count, notNullValue());
-        assertThat(count.getName(), equalTo("count"));
+        assertThat(count.getName(), equalTo("cardinality"));
         assertCount(count, numDocs);
     }
 
     @Test
     public void singleValuedStringHashed() throws Exception {
         SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(termCount("count").precision(precision).field("str_value.hash"))
+                .addAggregation(cardinality("cardinality").precision(precision).field("str_value.hash"))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
-        TermCount count = response.getAggregations().get("count");
+        Cardinality count = response.getAggregations().get("cardinality");
         assertThat(count, notNullValue());
-        assertThat(count.getName(), equalTo("count"));
+        assertThat(count.getName(), equalTo("cardinality"));
         assertCount(count, numDocs);
     }
 
     @Test
     public void singleValuedNumeric() throws Exception {
         SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(termCount("count").precision(precision).field("num_value"))
+                .addAggregation(cardinality("cardinality").precision(precision).field("num_value"))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
-        TermCount count = response.getAggregations().get("count");
+        Cardinality count = response.getAggregations().get("cardinality");
         assertThat(count, notNullValue());
-        assertThat(count.getName(), equalTo("count"));
+        assertThat(count.getName(), equalTo("cardinality"));
         assertCount(count, numDocs);
     }
 
     @Test
     public void singleValuedNumericHashed() throws Exception {
         SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(termCount("count").precision(precision).field("num_value.hash"))
+                .addAggregation(cardinality("cardinality").precision(precision).field("num_value.hash"))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
-        TermCount count = response.getAggregations().get("count");
+        Cardinality count = response.getAggregations().get("cardinality");
         assertThat(count, notNullValue());
-        assertThat(count.getName(), equalTo("count"));
+        assertThat(count.getName(), equalTo("cardinality"));
         assertCount(count, numDocs);
     }
 
     @Test
     public void multiValuedString() throws Exception {
         SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(termCount("count").precision(precision).field("str_values"))
+                .addAggregation(cardinality("cardinality").precision(precision).field("str_values"))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
-        TermCount count = response.getAggregations().get("count");
+        Cardinality count = response.getAggregations().get("cardinality");
         assertThat(count, notNullValue());
-        assertThat(count.getName(), equalTo("count"));
+        assertThat(count.getName(), equalTo("cardinality"));
         assertCount(count, numDocs * 2);
     }
 
     @Test
     public void multiValuedStringHashed() throws Exception {
         SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(termCount("count").precision(precision).field("str_values.hash"))
+                .addAggregation(cardinality("cardinality").precision(precision).field("str_values.hash"))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
-        TermCount count = response.getAggregations().get("count");
+        Cardinality count = response.getAggregations().get("cardinality");
         assertThat(count, notNullValue());
-        assertThat(count.getName(), equalTo("count"));
+        assertThat(count.getName(), equalTo("cardinality"));
         assertCount(count, numDocs * 2);
     }
 
     @Test
     public void multiValuedNumeric() throws Exception {
         SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(termCount("count").precision(precision).field("num_values"))
+                .addAggregation(cardinality("cardinality").precision(precision).field("num_values"))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
-        TermCount count = response.getAggregations().get("count");
+        Cardinality count = response.getAggregations().get("cardinality");
         assertThat(count, notNullValue());
-        assertThat(count.getName(), equalTo("count"));
+        assertThat(count.getName(), equalTo("cardinality"));
         assertCount(count, numDocs * 2);
     }
 
     @Test
     public void multiValuedNumericHashed() throws Exception {
         SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(termCount("count").precision(precision).field("num_values.hash"))
+                .addAggregation(cardinality("cardinality").precision(precision).field("num_values.hash"))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
-        TermCount count = response.getAggregations().get("count");
+        Cardinality count = response.getAggregations().get("cardinality");
         assertThat(count, notNullValue());
-        assertThat(count.getName(), equalTo("count"));
+        assertThat(count.getName(), equalTo("cardinality"));
         assertCount(count, numDocs * 2);
     }
 
     @Test
     public void singleValuedStringScript() throws Exception {
         SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(termCount("count").precision(precision).script("doc['str_value'].value"))
+                .addAggregation(cardinality("cardinality").precision(precision).script("doc['str_value'].value"))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
-        TermCount count = response.getAggregations().get("count");
+        Cardinality count = response.getAggregations().get("cardinality");
         assertThat(count, notNullValue());
-        assertThat(count.getName(), equalTo("count"));
+        assertThat(count.getName(), equalTo("cardinality"));
         assertCount(count, numDocs);
     }
 
     @Test
     public void multiValuedStringScript() throws Exception {
         SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(termCount("count").precision(precision).script("doc['str_values'].values"))
+                .addAggregation(cardinality("cardinality").precision(precision).script("doc['str_values'].values"))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
-        TermCount count = response.getAggregations().get("count");
+        Cardinality count = response.getAggregations().get("cardinality");
         assertThat(count, notNullValue());
-        assertThat(count.getName(), equalTo("count"));
+        assertThat(count.getName(), equalTo("cardinality"));
         assertCount(count, numDocs * 2);
     }
 
     @Test
     public void singleValuedNumericScript() throws Exception {
         SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(termCount("count").precision(precision).script("doc['num_value'].value"))
+                .addAggregation(cardinality("cardinality").precision(precision).script("doc['num_value'].value"))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
-        TermCount count = response.getAggregations().get("count");
+        Cardinality count = response.getAggregations().get("cardinality");
         assertThat(count, notNullValue());
-        assertThat(count.getName(), equalTo("count"));
+        assertThat(count.getName(), equalTo("cardinality"));
         assertCount(count, numDocs);
     }
 
     @Test
     public void multiValuedNumericScript() throws Exception {
         SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(termCount("count").precision(precision).script("doc['num_values'].values"))
+                .addAggregation(cardinality("cardinality").precision(precision).script("doc['num_values'].values"))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
-        TermCount count = response.getAggregations().get("count");
+        Cardinality count = response.getAggregations().get("cardinality");
         assertThat(count, notNullValue());
-        assertThat(count.getName(), equalTo("count"));
+        assertThat(count.getName(), equalTo("cardinality"));
         assertCount(count, numDocs * 2);
     }
 
     @Test
     public void singleValuedStringValueScript() throws Exception {
         SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(termCount("count").precision(precision).field("str_value").script("_value"))
+                .addAggregation(cardinality("cardinality").precision(precision).field("str_value").script("_value"))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
-        TermCount count = response.getAggregations().get("count");
+        Cardinality count = response.getAggregations().get("cardinality");
         assertThat(count, notNullValue());
-        assertThat(count.getName(), equalTo("count"));
+        assertThat(count.getName(), equalTo("cardinality"));
         assertCount(count, numDocs);
     }
 
     @Test
     public void multiValuedStringValueScript() throws Exception {
         SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(termCount("count").precision(precision).field("str_values").script("_value"))
+                .addAggregation(cardinality("cardinality").precision(precision).field("str_values").script("_value"))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
-        TermCount count = response.getAggregations().get("count");
+        Cardinality count = response.getAggregations().get("cardinality");
         assertThat(count, notNullValue());
-        assertThat(count.getName(), equalTo("count"));
+        assertThat(count.getName(), equalTo("cardinality"));
         assertCount(count, numDocs * 2);
     }
 
     @Test
     public void singleValuedNumericValueScript() throws Exception {
         SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(termCount("count").precision(precision).field("num_value").script("_value"))
+                .addAggregation(cardinality("cardinality").precision(precision).field("num_value").script("_value"))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
-        TermCount count = response.getAggregations().get("count");
+        Cardinality count = response.getAggregations().get("cardinality");
         assertThat(count, notNullValue());
-        assertThat(count.getName(), equalTo("count"));
+        assertThat(count.getName(), equalTo("cardinality"));
         assertCount(count, numDocs);
     }
 
     @Test
     public void multiValuedNumericValueScript() throws Exception {
         SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(termCount("count").precision(precision).field("num_values").script("_value"))
+                .addAggregation(cardinality("cardinality").precision(precision).field("num_values").script("_value"))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
-        TermCount count = response.getAggregations().get("count");
+        Cardinality count = response.getAggregations().get("cardinality");
         assertThat(count, notNullValue());
-        assertThat(count.getName(), equalTo("count"));
+        assertThat(count.getName(), equalTo("cardinality"));
         assertCount(count, numDocs * 2);
     }
 
     @Test
     public void asSubAgg() throws Exception {
         SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(terms("terms").field("str_value").subAggregation(termCount("count").precision(precision).field("str_values")))
+                .addAggregation(terms("terms").field("str_value").subAggregation(cardinality("cardinality").precision(precision).field("str_values")))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
         Terms terms = response.getAggregations().get("terms");
         for (Terms.Bucket bucket : terms.getBuckets()) {
-            TermCount count = bucket.getAggregations().get("count");
+            Cardinality count = bucket.getAggregations().get("cardinality");
             assertThat(count, notNullValue());
-            assertThat(count.getName(), equalTo("count"));
+            assertThat(count.getName(), equalTo("cardinality"));
             assertCount(count, 2);
         }
     }
@@ -400,16 +400,16 @@ public class TermCountTests extends ElasticsearchIntegrationTest {
     @Test
     public void asSubAggHashed() throws Exception {
         SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(terms("terms").field("str_value").subAggregation(termCount("count").precision(precision).field("str_values.hash")))
+                .addAggregation(terms("terms").field("str_value").subAggregation(cardinality("cardinality").precision(precision).field("str_values.hash")))
                 .execute().actionGet();
 
         assertSearchResponse(response);
 
         Terms terms = response.getAggregations().get("terms");
         for (Terms.Bucket bucket : terms.getBuckets()) {
-            TermCount count = bucket.getAggregations().get("count");
+            Cardinality count = bucket.getAggregations().get("cardinality");
             assertThat(count, notNullValue());
-            assertThat(count.getName(), equalTo("count"));
+            assertThat(count.getName(), equalTo("cardinality"));
             assertCount(count, 2);
         }
     }

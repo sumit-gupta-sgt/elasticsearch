@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.metrics.termcount;
+package org.elasticsearch.search.aggregations.metrics.cardinality;
 
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexFieldData;
@@ -37,11 +37,11 @@ import java.io.IOException;
 import java.util.Map;
 
 
-public class TermCountParser implements Aggregator.Parser {
+public class CardinalityParser implements Aggregator.Parser {
 
     @Override
     public String type() {
-        return InternalTermCount.TYPE.name();
+        return InternalCardinality.TYPE.name();
     }
 
     @Override
@@ -125,7 +125,7 @@ public class TermCountParser implements Aggregator.Parser {
             rehash = true;
         }
 
-        return new TermCountAggregatorFactory(name, config, precision, rehash);
+        return new CardinalityAggregatorFactory(name, config, precision, rehash);
     }
 
 }

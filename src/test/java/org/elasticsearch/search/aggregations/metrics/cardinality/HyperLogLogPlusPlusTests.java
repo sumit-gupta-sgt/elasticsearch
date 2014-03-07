@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.metrics.termcount;
+package org.elasticsearch.search.aggregations.metrics.cardinality;
 
 import com.carrotsearch.hppc.IntOpenHashSet;
 import com.carrotsearch.hppc.hash.MurmurHash3;
@@ -25,8 +25,8 @@ import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.test.ElasticsearchTestCase;
 import org.junit.Test;
 
-import static org.elasticsearch.search.aggregations.metrics.termcount.HyperLogLogPlusPlus.MAX_PRECISION;
-import static org.elasticsearch.search.aggregations.metrics.termcount.HyperLogLogPlusPlus.MIN_PRECISION;
+import static org.elasticsearch.search.aggregations.metrics.cardinality.HyperLogLogPlusPlus.MAX_PRECISION;
+import static org.elasticsearch.search.aggregations.metrics.cardinality.HyperLogLogPlusPlus.MIN_PRECISION;
 import static org.hamcrest.Matchers.closeTo;
 
 public class HyperLogLogPlusPlusTests extends ElasticsearchTestCase {
