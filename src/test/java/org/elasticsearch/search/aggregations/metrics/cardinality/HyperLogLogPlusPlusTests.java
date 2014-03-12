@@ -34,15 +34,26 @@ public class HyperLogLogPlusPlusTests extends ElasticsearchTestCase {
     @Test
     public void encodeDecode() {
         final int iters = atLeast(100000);
+        // random hashes
         for (int i = 0; i < iters; ++i) {
             final int p1 = randomIntBetween(4, 24);
             final long hash = randomLong();
-            final long index = HyperLogLogPlusPlus.index(hash, p1);
-            final int runLen = HyperLogLogPlusPlus.runLen(hash, p1);
-            final int encoded = HyperLogLogPlusPlus.encodeHash(hash, p1);
-            assertEquals(index, HyperLogLogPlusPlus.decodeIndex(encoded, p1));
-            assertEquals(runLen, HyperLogLogPlusPlus.decodeRunLen(encoded, p1));
+            testEncodeDecode(p1, hash);
         }
+        // special cases
+        for (int p1 = MIN_PRECISION; p1 <= MAX_PRECISION; ++p1) {
+            testEncodeDecode(p1, 0);
+            testEncodeDecode(p1, 1);
+            testEncodeDecode(p1, ~0L);
+        }
+    }
+
+    private void testEncodeDecode(int p1, long hash) {
+        final long index = HyperLogLogPlusPlus.index(hash, p1);
+        final int runLen = HyperLogLogPlusPlus.runLen(hash, p1);
+        final int encoded = HyperLogLogPlusPlus.encodeHash(hash, p1);
+        assertEquals(index, HyperLogLogPlusPlus.decodeIndex(encoded, p1));
+        assertEquals(runLen, HyperLogLogPlusPlus.decodeRunLen(encoded, p1));
     }
 
     @Test
@@ -93,6 +104,23 @@ public class HyperLogLogPlusPlusTests extends ElasticsearchTestCase {
                 assertEquals(single.cardinality(0), merged.cardinality(0));
             }
         }
+    }
+
+    @Test
+    public void fakeHashes() {
+        // hashes with lots of leading zeros trigger different paths in the code that we try to go through here
+        final int p = randomIntBetween(MIN_PRECISION, MAX_PRECISION);
+        final HyperLogLogPlusPlus counts = new HyperLogLogPlusPlus(p, BigArrays.NON_RECYCLING_INSTANCE, 0);
+
+        counts.collect(0, 0);
+        assertEquals(1, counts.cardinality(0));
+        if (randomBoolean()) {
+            counts.collect(0, 1);
+            assertEquals(2, counts.cardinality(0));
+        }
+        counts.upgradeToHll(0);
+        // all hashes felt into the same bucket so hll would expect a count of 1
+        assertEquals(1, counts.cardinality(0));
     }
 
 }

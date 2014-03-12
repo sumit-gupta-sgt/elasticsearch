@@ -60,7 +60,7 @@ public final class HyperLogLogPlusPlus implements Releasable {
     private static final boolean LINEAR_COUNTING = false;
     private static final boolean HYPERLOGLOG = true;
     private static final float MAX_LOAD_FACTOR = 0.75f;
-    private static final int P2 = 24;
+    private static final int P2 = 25;
 
     // these static tables come from the appendix of the paper
     private static final double[][] RAW_ESTIMATE_DATA = {
@@ -211,9 +211,8 @@ public final class HyperLogLogPlusPlus implements Releasable {
     }
 
     private void collectLc(long bucket, long hash) {
-        final long k = encodeHash(hash, p);
-        assert PackedInts.bitsRequired(k) <= 31; // this is the point of having P2=24
-        collectLcEncoded(bucket, (int) k);
+        final int k = encodeHash(hash, p);
+        collectLcEncoded(bucket, k);
     }
 
     private void collectLcEncoded(long bucket, int encoded) {
@@ -279,7 +278,7 @@ public final class HyperLogLogPlusPlus implements Releasable {
         }
     }
 
-    private void upgradeToHll(long bucket) {
+    void upgradeToHll(long bucket) {
         ensureCapacity(bucket + 1);
         final IntArray values = hashSet.values(bucket);
         try {
@@ -302,6 +301,9 @@ public final class HyperLogLogPlusPlus implements Releasable {
         return (1L << bits) - 1;
     }
 
+    /**
+     * Encode the hash on 32 bits. The encoded hash cannot be equal to <code>0</code>.
+     */
     static int encodeHash(long hash, int p) {
         final long e = hash >>> (64 - P2);
         final long encoded;
@@ -311,7 +313,8 @@ public final class HyperLogLogPlusPlus implements Releasable {
         } else {
             encoded = e << 1;
         }
-        assert PackedInts.bitsRequired(encoded) <= 31;
+        assert PackedInts.bitsRequired(encoded) <= 32;
+        assert encoded != 0;
         return (int) encoded;
     }
 
@@ -319,7 +322,9 @@ public final class HyperLogLogPlusPlus implements Releasable {
         if ((encoded & 1) == 1) {
             return (((encoded >>> 1) & 0x3F) + (P2 - p));
         } else {
-            return 1 + Integer.numberOfLeadingZeros(encoded << (31 + p - P2));
+            final int bits = encoded << (31 + p - P2);
+            assert bits != 0;
+            return 1 + Integer.numberOfLeadingZeros(bits);
         }
     }
 
@@ -418,11 +423,24 @@ public final class HyperLogLogPlusPlus implements Releasable {
             runLens.set(index(bucket, index), writeSpare.array(), 0, 4);
         }
 
+        private int recomputedSize(long bucket) {
+            int size = 0;
+            for (int i = 0; i <= mask; ++i) {
+                final int v = get(bucket, i);
+                if (v != 0) {
+                    ++size;
+                }
+            }
+            return size;
+        }
+
         public int size(long bucket) {
             if (bucket >= sizes.size()) {
                 return 0;
             }
-            return sizes.get(bucket);
+            final int size = sizes.get(bucket);
+            assert size == recomputedSize(bucket);
+            return size;
         }
 
         /**
@@ -431,9 +449,7 @@ public final class HyperLogLogPlusPlus implements Releasable {
          */
         public int add(long bucket, int k) {
             sizes = bigArrays.grow(sizes, bucket + 1);
-            assert k >= 0;
-            k |= (1 << 31);
-            assert (k >>> 31) != 0 : k;
+            assert k != 0;
             for (int i = (k & mask); ; i = (i + 1) & mask) {
                 final int v = get(bucket, i);
                 if (v == 0) {
@@ -444,7 +460,6 @@ public final class HyperLogLogPlusPlus implements Releasable {
                     // k is already in the set
                     return -1;
                 }
-                assert (v >>> 31) != 0 : v;
             }
         }
 
@@ -458,11 +473,8 @@ public final class HyperLogLogPlusPlus implements Releasable {
             for (int j = 0; j < capacity; ++j) {
                 final int k = get(bucket, j);
                 if (k != 0) {
-                    values.set(i++, k & ~(1 << 31));
+                    values.set(i++, k);
                 }
-            }
-            for (int j = 0; j < values.size(); ++j) {
-                assert (values.get(j) >>> 31) == 0;
             }
             assert i == values.size();
             return values;
