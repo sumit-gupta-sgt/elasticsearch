@@ -55,6 +55,7 @@ import java.util.Arrays;
 public final class HyperLogLogPlusPlus implements Releasable {
 
     public static final int MIN_PRECISION = 4;
+    public static final int DEFAULT_PRECISION = 14;
     public static final int MAX_PRECISION = 18;
     private static final boolean LINEAR_COUNTING = false;
     private static final boolean HYPERLOGLOG = true;
