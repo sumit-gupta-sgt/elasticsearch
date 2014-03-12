@@ -65,7 +65,7 @@ public final class InternalCardinality extends MetricsAggregation.SingleValue im
 
     @Override
     public long getValue() {
-        return counts.cardinality(0);
+        return counts == null ? 0 : counts.cardinality(0);
     }
 
     @Override
@@ -77,31 +77,42 @@ public final class InternalCardinality extends MetricsAggregation.SingleValue im
     public void readFrom(StreamInput in) throws IOException {
         name = in.readString();
         valueFormatter = ValueFormatterStreams.readOptional(in);
-        counts = HyperLogLogPlusPlus.readFrom(in, BigArrays.NON_RECYCLING_INSTANCE);
+        if (in.readBoolean()) {
+            counts = HyperLogLogPlusPlus.readFrom(in, BigArrays.NON_RECYCLING_INSTANCE);
+        } else {
+            counts = null;
+        }
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeString(name);
         ValueFormatterStreams.writeOptional(valueFormatter, out);
-        counts.writeTo(0, out);
+        if (counts != null) {
+            out.writeBoolean(true);
+            counts.writeTo(0, out);
+        } else {
+            out.writeBoolean(false);
+        }
     }
 
     @Override
     public InternalAggregation reduce(ReduceContext reduceContext) {
         List<InternalAggregation> aggregations = reduceContext.aggregations();
-        if (aggregations.size() == 1) {
-            return (InternalCardinality) aggregations.get(0);
-        }
-
         InternalCardinality reduced = null;
         for (InternalAggregation aggregation : aggregations) {
             final InternalCardinality cardinality = (InternalCardinality) aggregation;
-            if (reduced == null) {
-                reduced = cardinality;
-            } else {
-                reduced.merge(cardinality);
+            if (cardinality.counts != null) {
+                if (reduced == null) {
+                    reduced = cardinality;
+                } else {
+                    reduced.merge(cardinality);
+                }
             }
+        }
+
+        if (reduced == null) { // all empty
+            reduced = (InternalCardinality) aggregations.get(0);
         }
 
         return reduced;

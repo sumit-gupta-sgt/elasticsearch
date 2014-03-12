@@ -60,16 +60,16 @@ public class CardinalityAggregator extends MetricsAggregator.SingleValue {
         this.valuesSource = valuesSource;
         this.rehash = rehash;
         this.precision = precision;
-        counts = new HyperLogLogPlusPlus(precision, bigArrays, estimatedBucketsCount);
+        if (valuesSource != null) {
+            counts = new HyperLogLogPlusPlus(precision, bigArrays, estimatedBucketsCount);
+        } else {
+            counts = null;
+        }
     }
 
     @Override
     public void setNextReader(AtomicReaderContext reader) {
-        if (collector != null) {
-            collector.postCollect();
-            collector.release();
-            collector = null;
-        }
+        postCollectLastCollector();
 
         LongValues hashValues = null;
         BytesValues.WithOrdinals values = null;
@@ -122,7 +122,7 @@ public class CardinalityAggregator extends MetricsAggregator.SingleValue {
                 if (bytesValues instanceof BytesValues.WithOrdinals) {
                     values = (BytesValues.WithOrdinals) bytesValues;
                     final long maxOrd = values.ordinals().getMaxOrd();
-                    if (values.ordinals().getMaxOrd() > Integer.MAX_VALUE) {
+                    if (maxOrd > reader.reader().maxDoc()) {
                         // don't use ordinals
                         values = null;
                     }
@@ -170,25 +170,34 @@ public class CardinalityAggregator extends MetricsAggregator.SingleValue {
         collector.collect(doc, owningBucketOrdinal);
     }
 
+    private void postCollectLastCollector() {
+        if (collector != null) {
+            try {
+                collector.postCollect();
+                collector.release();
+            } finally {
+                collector = null;
+            }
+        }
+    }
+
     @Override
     protected void doPostCollection() {
-        if (collector != null) {
-            collector.postCollect();
-            collector.release();
-            collector = null;
-        }
+        postCollectLastCollector();
     }
 
     @Override
     public double metric(long owningBucketOrd) {
-        return counts.cardinality(owningBucketOrd);
+        return counts == null ? 0 : counts.cardinality(owningBucketOrd);
     }
 
     @Override
     public InternalAggregation buildAggregation(long owningBucketOrdinal) {
-        if (owningBucketOrdinal >= counts.maxBucket()) {
+        if (counts == null || owningBucketOrdinal >= counts.maxBucket() || counts.cardinality(owningBucketOrdinal) == 0) {
             return buildEmptyAggregation();
         }
+        // We need to build a copy because the returned Aggregation needs remain usable after
+        // this Aggregator (and its HLL++ counters) is released.
         HyperLogLogPlusPlus copy = new HyperLogLogPlusPlus(precision, BigArrays.NON_RECYCLING_INSTANCE, 1);
         copy.merge(counts, owningBucketOrdinal, 0);
         return new InternalCardinality(name, copy);
@@ -196,7 +205,7 @@ public class CardinalityAggregator extends MetricsAggregator.SingleValue {
 
     @Override
     public InternalAggregation buildEmptyAggregation() {
-        return new InternalCardinality(name, new HyperLogLogPlusPlus(precision, BigArrays.NON_RECYCLING_INSTANCE, 1));
+        return new InternalCardinality(name, null);
     }
 
     @Override
