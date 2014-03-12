@@ -75,7 +75,7 @@ public class CardinalityAggregator extends MetricsAggregator.SingleValue {
 
     private Collector createCollector(AtomicReaderContext reader) {
 
-        // if rehash is {@code false} then the value source is either already hashed, or the user explicitly
+        // if rehash is false then the value source is either already hashed, or the user explicitly
         // requested not to hash the values (perhaps they already hashed the values themselves before indexing the doc)
         // so we can just work with the original value source as is
         if (!rehash) {
