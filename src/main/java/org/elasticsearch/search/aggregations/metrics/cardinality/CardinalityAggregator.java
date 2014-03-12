@@ -52,9 +52,7 @@ public class CardinalityAggregator extends MetricsAggregator.SingleValue {
     private final boolean rehash;
     private final ValuesSource valuesSource;
 
-    /**
-     * Expensive to initialize, so we only initialize it when
-     */
+    // Expensive to initialize, so we only initialize it when we have an actual value source
     @Nullable
     private HyperLogLogPlusPlus counts;
 
@@ -72,21 +70,23 @@ public class CardinalityAggregator extends MetricsAggregator.SingleValue {
     @Override
     public void setNextReader(AtomicReaderContext reader) {
         postCollectLastCollector();
+        collector = createCollector(reader);
+    }
+
+    private Collector createCollector(AtomicReaderContext reader) {
 
         // if rehash is {@code false} then the value source is either already hashed, or the user explicitly
         // requested not to hash the values (perhaps they already hashed the values themselves before indexing the doc)
         // so we can just work with the original value source as is
         if (!rehash) {
             LongValues hashValues = ((NumericValuesSource) valuesSource).longValues();
-            collector = new DirectCollector(counts, hashValues);
-            return;
+            return new DirectCollector(counts, hashValues);
         }
 
         if (valuesSource instanceof NumericValuesSource) {
             NumericValuesSource source = (NumericValuesSource) valuesSource;
             LongValues hashValues = source.isFloatingPoint() ? MurmurHash3Values.wrap(source.doubleValues()) : MurmurHash3Values.wrap(source.longValues());
-            collector = new DirectCollector(counts, hashValues);
-            return;
+            return new DirectCollector(counts, hashValues);
         }
 
         final BytesValues bytesValues = valuesSource.bytesValues();
@@ -94,12 +94,11 @@ public class CardinalityAggregator extends MetricsAggregator.SingleValue {
             BytesValues.WithOrdinals values = (BytesValues.WithOrdinals) bytesValues;
             final long maxOrd = values.ordinals().getMaxOrd();
             if (maxOrd <= reader.reader().maxDoc()) {
-                collector = new OrdinalsCollector(counts, values, bigArrays);
-                return;
+                return new OrdinalsCollector(counts, values, bigArrays);
             }
         }
 
-        collector = new DirectCollector(counts, MurmurHash3Values.wrap(bytesValues));
+        return new DirectCollector(counts, MurmurHash3Values.wrap(bytesValues));
     }
 
 
