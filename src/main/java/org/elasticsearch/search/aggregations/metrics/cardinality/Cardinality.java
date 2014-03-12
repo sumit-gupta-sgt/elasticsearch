@@ -21,7 +21,9 @@ package org.elasticsearch.search.aggregations.metrics.cardinality;
 
 import org.elasticsearch.search.aggregations.Aggregation;
 
-/** A number of unique terms. */
+/**
+ * A number of unique terms.
+ */
 public interface Cardinality extends Aggregation {
 
     public long getValue();

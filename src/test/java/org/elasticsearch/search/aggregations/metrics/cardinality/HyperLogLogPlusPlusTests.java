@@ -99,7 +99,7 @@ public class HyperLogLogPlusPlusTests extends ElasticsearchTestCase {
             if (randomInt(100) == 0) {
                 HyperLogLogPlusPlus merged = new HyperLogLogPlusPlus(p, BigArrays.NON_RECYCLING_INSTANCE, 0);
                 for (int j = 0; j < multi.length; ++j) {
-                    merged.merge(multi[j], bucketOrds[j], 0);
+                    merged.merge(0, multi[j], bucketOrds[j]);
                 }
                 assertEquals(single.cardinality(0), merged.cardinality(0));
             }

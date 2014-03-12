@@ -19,21 +19,20 @@
 
 package org.elasticsearch.search.aggregations.metrics.cardinality;
 
-import com.carrotsearch.ant.tasks.junit4.dependencies.com.google.common.base.Preconditions;
-import com.carrotsearch.hppc.hash.MurmurHash3;
+import com.google.common.base.Preconditions;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.FixedBitSet;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.lease.Releasable;
 import org.elasticsearch.common.lease.Releasables;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.LongArray;
 import org.elasticsearch.common.util.ObjectArray;
-import org.elasticsearch.index.fielddata.AtomicFieldData.Order;
 import org.elasticsearch.index.fielddata.BytesValues;
-import org.elasticsearch.index.fielddata.DoubleValues;
 import org.elasticsearch.index.fielddata.LongValues;
+import org.elasticsearch.index.fielddata.MurmurHash3Values;
 import org.elasticsearch.index.fielddata.ordinals.Ordinals;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
@@ -52,113 +51,57 @@ public class CardinalityAggregator extends MetricsAggregator.SingleValue {
     private final int precision;
     private final boolean rehash;
     private final ValuesSource valuesSource;
+
+    /**
+     * Expensive to initialize, so we only initialize it when
+     */
+    @Nullable
     private HyperLogLogPlusPlus counts;
+
     private Collector collector;
 
-    public CardinalityAggregator(String name, long estimatedBucketsCount, ValuesSource valuesSource, boolean rehash, int precision, AggregationContext context, Aggregator parent) {
+    public CardinalityAggregator(String name, long estimatedBucketsCount, ValuesSource valuesSource, boolean rehash,
+                                 int precision, AggregationContext context, Aggregator parent) {
         super(name, estimatedBucketsCount, context, parent);
         this.valuesSource = valuesSource;
         this.rehash = rehash;
         this.precision = precision;
-        if (valuesSource != null) {
-            counts = new HyperLogLogPlusPlus(precision, bigArrays, estimatedBucketsCount);
-        } else {
-            counts = null;
-        }
+        this.counts = valuesSource == null ? null : new HyperLogLogPlusPlus(precision, bigArrays, estimatedBucketsCount);
     }
 
     @Override
     public void setNextReader(AtomicReaderContext reader) {
         postCollectLastCollector();
 
-        LongValues hashValues = null;
-        BytesValues.WithOrdinals values = null;
+        // if rehash is {@code false} then the value source is either already hashed, or the user explicitly
+        // requested not to hash the values (perhaps they already hashed the values themselves before indexing the doc)
+        // so we can just work with the original value source as is
         if (!rehash) {
-            hashValues = ((NumericValuesSource) valuesSource).longValues();
-        } else {
-            if (valuesSource instanceof NumericValuesSource) {
-                NumericValuesSource source = (NumericValuesSource) valuesSource;
-                if (source.isFloatingPoint()) {
-                    final DoubleValues doubleValues = source.doubleValues();
-                    hashValues = new LongValues(values.isMultiValued()) {
+            LongValues hashValues = ((NumericValuesSource) valuesSource).longValues();
+            collector = new DirectCollector(counts, hashValues);
+            return;
+        }
 
-                        @Override
-                        public int setDocument(int docId) {
-                            return doubleValues.setDocument(docId);
-                        }
+        if (valuesSource instanceof NumericValuesSource) {
+            NumericValuesSource source = (NumericValuesSource) valuesSource;
+            LongValues hashValues = source.isFloatingPoint() ? MurmurHash3Values.wrap(source.doubleValues()) : MurmurHash3Values.wrap(source.longValues());
+            collector = new DirectCollector(counts, hashValues);
+            return;
+        }
 
-                        @Override
-                        public long nextValue() {
-                            return MurmurHash3.hash(Double.doubleToLongBits(doubleValues.nextValue()));
-                        }
-
-                        @Override
-                        public Order getOrder() {
-                            return Order.NONE;
-                        }
-                    };
-                } else {
-                    final LongValues longValues = source.longValues();
-                    hashValues = new LongValues(longValues.isMultiValued()) {
-
-                        @Override
-                        public int setDocument(int docId) {
-                            return longValues.setDocument(docId);
-                        }
-
-                        @Override
-                        public long nextValue() {
-                            return MurmurHash3.hash(longValues.nextValue());
-                        }
-
-                        @Override
-                        public Order getOrder() {
-                            return Order.NONE;
-                        }
-                    };
-                }
-            } else {
-                final BytesValues bytesValues = valuesSource.bytesValues();
-                if (bytesValues instanceof BytesValues.WithOrdinals) {
-                    values = (BytesValues.WithOrdinals) bytesValues;
-                    final long maxOrd = values.ordinals().getMaxOrd();
-                    if (maxOrd > reader.reader().maxDoc()) {
-                        // don't use ordinals
-                        values = null;
-                    }
-                }
-                if (values == null) {
-                    final org.elasticsearch.common.hash.MurmurHash3.Hash128 hash = new org.elasticsearch.common.hash.MurmurHash3.Hash128();
-                    hashValues = new LongValues(bytesValues.isMultiValued()) {
-
-                        @Override
-                        public int setDocument(int docId) {
-                            return bytesValues.setDocument(docId);
-                        }
-
-                        @Override
-                        public long nextValue() {
-                            final BytesRef next = bytesValues.nextValue();
-                            org.elasticsearch.common.hash.MurmurHash3.hash128(next.bytes, next.offset, next.length, 0, hash);
-                            return hash.h1;
-                        }
-
-                        @Override
-                        public Order getOrder() {
-                            return Order.NONE;
-                        }
-                    };
-                }
+        final BytesValues bytesValues = valuesSource.bytesValues();
+        if (bytesValues instanceof BytesValues.WithOrdinals) {
+            BytesValues.WithOrdinals values = (BytesValues.WithOrdinals) bytesValues;
+            final long maxOrd = values.ordinals().getMaxOrd();
+            if (maxOrd <= reader.reader().maxDoc()) {
+                collector = new OrdinalsCollector(counts, values, bigArrays);
+                return;
             }
         }
 
-        if (hashValues != null) {
-            assert values == null;
-            collector = new DirectCollector(counts, hashValues);
-        } else {
-            collector = new OrdinalsCollector(counts, values, bigArrays);
-        }
+        collector = new DirectCollector(counts, MurmurHash3Values.wrap(bytesValues));
     }
+
 
     @Override
     public boolean shouldCollect() {
@@ -199,7 +142,7 @@ public class CardinalityAggregator extends MetricsAggregator.SingleValue {
         // We need to build a copy because the returned Aggregation needs remain usable after
         // this Aggregator (and its HLL++ counters) is released.
         HyperLogLogPlusPlus copy = new HyperLogLogPlusPlus(precision, BigArrays.NON_RECYCLING_INSTANCE, 1);
-        copy.merge(counts, owningBucketOrdinal, 0);
+        copy.merge(0, counts, owningBucketOrdinal);
         return new InternalCardinality(name, copy);
     }
 

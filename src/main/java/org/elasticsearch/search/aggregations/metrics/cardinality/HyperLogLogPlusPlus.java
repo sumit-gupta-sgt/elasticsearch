@@ -172,7 +172,7 @@ public final class HyperLogLogPlusPlus implements Releasable {
         runLens = bigArrays.grow(runLens, numBuckets << p);
     }
 
-    public void merge(HyperLogLogPlusPlus other, long otherBucket, long thisBucket) {
+    public void merge(long thisBucket, HyperLogLogPlusPlus other, long otherBucket) {
         Preconditions.checkArgument(p == other.p);
         ensureCapacity(thisBucket + 1);
         if (other.algorithm.get(otherBucket) == LINEAR_COUNTING) {

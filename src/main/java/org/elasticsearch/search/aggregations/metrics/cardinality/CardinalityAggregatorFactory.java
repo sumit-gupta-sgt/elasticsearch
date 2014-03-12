@@ -19,12 +19,14 @@
 
 package org.elasticsearch.search.aggregations.metrics.cardinality;
 
+import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.Aggregator.BucketAggregationMode;
 import org.elasticsearch.search.aggregations.support.AggregationContext;
 import org.elasticsearch.search.aggregations.support.ValueSourceAggregatorFactory;
 import org.elasticsearch.search.aggregations.support.ValuesSource;
 import org.elasticsearch.search.aggregations.support.ValuesSourceConfig;
+import org.elasticsearch.search.aggregations.support.numeric.NumericValuesSource;
 
 final class CardinalityAggregatorFactory extends ValueSourceAggregatorFactory<ValuesSource> {
 
@@ -37,25 +39,6 @@ final class CardinalityAggregatorFactory extends ValueSourceAggregatorFactory<Va
         this.rehash = rehash;
     }
 
-    /**
-     * If one of the parent aggregators is a MULTI_BUCKET one, we might want to lower the precision
-     * because otherwise it might be memory-intensive. On the other hand, for top-level aggregators
-     * we try to focus on accuracy.
-     */
-    private int defaultPrecision(Aggregator parent) {
-        int precision = HyperLogLogPlusPlus.DEFAULT_PRECISION;
-        while (parent != null) {
-            if (parent.bucketAggregationMode() == BucketAggregationMode.MULTI_BUCKETS) {
-                // if the parent is a multi-bucket aggregator, we substract 5 to the precision,
-                // which will effectively divide the memory usage of each counter by 32
-                precision -= 5;
-            }
-            parent = parent.parent();
-        }
-
-        return Math.max(precision, HyperLogLogPlusPlus.MIN_PRECISION);
-    }
-
     private int precision(Aggregator parent) {
         return precision < 0 ? defaultPrecision(parent) : precision;
     }
@@ -66,9 +49,30 @@ final class CardinalityAggregatorFactory extends ValueSourceAggregatorFactory<Va
     }
 
     @Override
-    protected Aggregator create(ValuesSource valuesSource, long expectedBucketsCount, AggregationContext context,
-            Aggregator parent) {
+    protected Aggregator create(ValuesSource valuesSource, long expectedBucketsCount, AggregationContext context, Aggregator parent) {
+        if (!(valuesSource instanceof NumericValuesSource) && !rehash) {
+            throw new AggregationExecutionException("Turning off rehashing for cardinality aggregation [" + name + "] on non-numeric values in not allowed");
+        }
         return new CardinalityAggregator(name, parent == null ? 1 : parent.estimatedBucketCount(), valuesSource, rehash, precision(parent), context, parent);
+    }
+
+    /*
+     * If one of the parent aggregators is a MULTI_BUCKET one, we might want to lower the precision
+     * because otherwise it might be memory-intensive. On the other hand, for top-level aggregators
+     * we try to focus on accuracy.
+     */
+    private int defaultPrecision(Aggregator parent) {
+        int precision = HyperLogLogPlusPlus.DEFAULT_PRECISION;
+          while (parent != null) {
+            if (parent.bucketAggregationMode() == BucketAggregationMode.MULTI_BUCKETS) {
+                // if the parent is a multi-bucket aggregator, we substract 5 to the precision,
+                // which will effectively divide the memory usage of each counter by 32
+                precision -= 5;
+            }
+            parent = parent.parent();
+        }
+
+        return Math.max(precision, HyperLogLogPlusPlus.MIN_PRECISION);
     }
 
 }

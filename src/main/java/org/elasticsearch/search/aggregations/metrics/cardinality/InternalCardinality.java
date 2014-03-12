@@ -119,7 +119,8 @@ public final class InternalCardinality extends MetricsAggregation.SingleValue im
     }
 
     public void merge(InternalCardinality other) {
-        counts.merge(other.counts, 0, 0);
+        assert counts != null && other != null;
+        counts.merge(0, other.counts, 0);
     }
 
     @Override
