@@ -89,11 +89,8 @@ in the mapping:
 --------------------------------------------------
 {
     "author": {
-        "type": "multi_fields",
+        "type": "string",
         "fields": {
-            "author": {
-                "type": "string"
-            },
             "hash": {
                 "type": "murmur3"
             }
