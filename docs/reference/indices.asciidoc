@@ -4,7 +4,8 @@
 [partintro]
 --
 The indices APIs are used to manage individual indices,
-index settings, aliases, mappings, and index templates.
+index settings, aliases, mappings, index templates
+and warmers.
 
 [float]
 [[index-management]]
@@ -12,11 +13,8 @@ index settings, aliases, mappings, and index templates.
 
 * <<indices-create-index>>
 * <<indices-delete-index>>
-* <<indices-get-index>>
 * <<indices-exists>>
 * <<indices-open-close>>
-* <<indices-shrink-index>>
-* <<indices-rollover-index>>
 
 [float]
 [[mapping-management]]
@@ -25,6 +23,7 @@ index settings, aliases, mappings, and index templates.
 * <<indices-put-mapping>>
 * <<indices-get-mapping>>
 * <<indices-get-field-mapping>>
+* <<indices-delete-mapping>>
 * <<indices-types-exists>>
 
 [float]
@@ -39,19 +38,14 @@ index settings, aliases, mappings, and index templates.
 * <<indices-get-settings>>
 * <<indices-analyze>>
 * <<indices-templates>>
-
-[float]
-[[shadow-replicas]]
-== Replica configurations
-* <<indices-shadow-replicas>>
+* <<indices-warmers>>
 
 [float]
 [[monitoring]]
 == Monitoring:
+* <<indices-status>>
 * <<indices-stats>>
 * <<indices-segments>>
-* <<indices-recovery>>
-* <<indices-shards-stores>>
 
 [float]
 [[status-management]]
@@ -59,7 +53,8 @@ index settings, aliases, mappings, and index templates.
 * <<indices-clearcache>>
 * <<indices-refresh>>
 * <<indices-flush>>
-* <<indices-forcemerge>>
+* <<indices-optimize>>
+* <<indices-gateway-snapshot>>
 
 --
 
@@ -67,15 +62,9 @@ include::indices/create-index.asciidoc[]
 
 include::indices/delete-index.asciidoc[]
 
-include::indices/get-index.asciidoc[]
-
 include::indices/indices-exists.asciidoc[]
 
 include::indices/open-close.asciidoc[]
-
-include::indices/shrink-index.asciidoc[]
-
-include::indices/rollover-index.asciidoc[]
 
 include::indices/put-mapping.asciidoc[]
 
@@ -84,6 +73,8 @@ include::indices/get-mapping.asciidoc[]
 include::indices/get-field-mapping.asciidoc[]
 
 include::indices/types-exists.asciidoc[]
+
+include::indices/delete-mapping.asciidoc[]
 
 include::indices/aliases.asciidoc[]
 
@@ -95,15 +86,13 @@ include::indices/analyze.asciidoc[]
 
 include::indices/templates.asciidoc[]
 
-include::indices/shadow-replicas.asciidoc[]
+include::indices/warmers.asciidoc[]
+
+include::indices/status.asciidoc[]
 
 include::indices/stats.asciidoc[]
 
 include::indices/segments.asciidoc[]
-
-include::indices/recovery.asciidoc[]
-
-include::indices/shard-stores.asciidoc[]
 
 include::indices/clearcache.asciidoc[]
 
@@ -111,5 +100,7 @@ include::indices/flush.asciidoc[]
 
 include::indices/refresh.asciidoc[]
 
-include::indices/forcemerge.asciidoc[]
+include::indices/optimize.asciidoc[]
+
+include::indices/gateway-snapshot.asciidoc[]
 

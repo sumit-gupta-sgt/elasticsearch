@@ -9,8 +9,7 @@ API. Here is an example:
 
 [source,js]
 --------------------------------------------------
-GET /_mget
-{
+curl 'localhost:9200/_mget' -d '{
     "docs" : [
         {
             "_index" : "test",
@@ -23,17 +22,15 @@ GET /_mget
             "_id" : "2"
         }
     ]
-}
+}'
 --------------------------------------------------
-// CONSOLE
 
 The `mget` endpoint can also be used against an index (in which case it
 is not required in the body):
 
 [source,js]
 --------------------------------------------------
-GET /test/_mget
-{
+curl 'localhost:9200/test/_mget' -d '{
     "docs" : [
         {
             "_type" : "type",
@@ -44,16 +41,14 @@ GET /test/_mget
             "_id" : "2"
         }
     ]
-}
+}'
 --------------------------------------------------
-// CONSOLE
 
 And type:
 
 [source,js]
 --------------------------------------------------
-GET /test/type/_mget
-{
+curl 'localhost:9200/test/type/_mget' -d '{
     "docs" : [
         {
             "_id" : "1"
@@ -62,67 +57,24 @@ GET /test/type/_mget
             "_id" : "2"
         }
     ]
-}
+}'
 --------------------------------------------------
-//CONSOLE
 
 In which case, the `ids` element can directly be used to simplify the
 request:
 
 [source,js]
 --------------------------------------------------
-GET /test/type/_mget
-{
+curl 'localhost:9200/test/type/_mget' -d '{
     "ids" : ["1", "2"]
-}
+}'
 --------------------------------------------------
-// CONSOLE
-
-[float]
-[[mget-type]]
-=== Optional Type
-
-The mget API allows for `_type` to be optional. Set it to `_all` or leave it empty in order
-to fetch the first document matching the id across all types.
-
-If you don't set the type and have many documents sharing the same `_id`, you will end up
-getting only the first matching document.
-
-For example, if you have a document 1 within typeA and typeB then following request
-will give you back only the same document twice:
-
-[source,js]
---------------------------------------------------
-GET /test/_mget
-{
-    "ids" : ["1", "1"]
-}
---------------------------------------------------
-// CONSOLE
-
-You need in that case to explicitly set the `_type`:
-
-[source,js]
---------------------------------------------------
-GET /test/_mget/
-{
-  "docs" : [
-        {
-            "_type":"typeA",
-            "_id" : "1"
-        },
-        {
-            "_type":"typeB",
-            "_id" : "1"
-        }
-    ]
-}
---------------------------------------------------
-// CONSOLE
 
 [float]
 [[mget-source-filtering]]
 === Source filtering
+
+added[1.0.0.Beta1]
 
 By default, the `_source` field will be returned for every document (if stored).
 Similar to the <<get-source-filtering,get>> API, you can retrieve only parts of
@@ -134,8 +86,7 @@ For example:
 
 [source,js]
 --------------------------------------------------
-GET /_mget
-{
+curl 'localhost:9200/_mget' -d '{
     "docs" : [
         {
             "_index" : "test",
@@ -155,81 +106,50 @@ GET /_mget
             "_id" : "3",
             "_source" : {
                 "include": ["user"],
-                "exclude": ["user.location"]
+                "_exclude": ["user.location"]
             }
         }
     ]
-}
+}'
 --------------------------------------------------
-// CONSOLE
 
 
 [float]
 [[mget-fields]]
 === Fields
 
-Specific stored fields can be specified to be retrieved per document to get, similar to the <<get-stored-fields,stored_fields>> parameter of the Get API.
+Specific stored fields can be specified to be retrieved per document to get, similar to the <<get-fields,fields>> parameter of the Get API.
 For example:
 
 [source,js]
 --------------------------------------------------
-GET /_mget
-{
+curl 'localhost:9200/_mget' -d '{
     "docs" : [
         {
             "_index" : "test",
             "_type" : "type",
             "_id" : "1",
-            "stored_fields" : ["field1", "field2"]
+            "fields" : ["field1", "field2"]
         },
         {
             "_index" : "test",
             "_type" : "type",
             "_id" : "2",
-            "stored_fields" : ["field3", "field4"]
+            "fields" : ["field3", "field4"]
         }
     ]
-}
+}'
 --------------------------------------------------
-// CONSOLE
-
-Alternatively, you can specify the `stored_fields` parameter in the query string
-as a default to be applied to all documents.
-
-[source,js]
---------------------------------------------------
-GET /test/type/_mget?stored_fields=field1,field2
-{
-    "docs" : [
-        {
-            "_id" : "1" <1>
-        },
-        {
-            "_id" : "2",
-            "stored_fields" : ["field3", "field4"] <2>
-        }
-    ]
-}
---------------------------------------------------
-// CONSOLE
-<1> Returns `field1` and `field2`
-<2> Returns `field3` and `field4`
-
-[float]
-=== Generated fields
-
-See <<generated-fields>> for fields generated only when indexing.
 
 [float]
 [[mget-routing]]
 === Routing
 
-You can also specify routing value as a parameter:
+You can specify also specify routing value as a parameter:
 
 [source,js]
 --------------------------------------------------
-GET /_mget?routing=key1
-{
+curl 'localhost:9200/_mget?routing=key1' -d '{
     "docs" : [
         {
             "_index" : "test",
@@ -243,9 +163,8 @@ GET /_mget?routing=key1
             "_id" : "2"
         }
     ]
-}
+}'
 --------------------------------------------------
-// CONSOLE
 
 In this example, document `test/type/2` will be fetch from shard corresponding to routing key `key1` but
 document `test/type/1` will be fetch from shard corresponding to routing key `key2`.

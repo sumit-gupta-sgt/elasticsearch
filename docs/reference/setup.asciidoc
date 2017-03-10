@@ -1,57 +1,63 @@
 [[setup]]
-= Setup Elasticsearch
+= Setup
 
 [partintro]
 --
-This section includes information on how to setup Elasticsearch and get it
-running, including:
+This section includes information on how to setup *elasticsearch* and
+get it running. If you haven't already, http://www.elasticsearch.org/download[download] it, and
+then check the <<setup-installation,installation>> docs.
 
-* Downloading
-* Installing
-* Starting
-* Configuring
+NOTE: Elasticsearch can also be installed from our repositories using `apt` or `yum`.
+See <<setup-repositories>>.
 
-[[supported-platforms]]
+[[setup-installation]]
 [float]
-== Supported platforms
+== Installation
 
-The matrix of officially supported operating systems and JVMs is available here:
-link:/support/matrix[Support Matrix].  Elasticsearch is tested on the listed
-platforms, but it is possible that it will work on other platforms too.
+After link:/download[downloading] the latest release and extracting it,
+*elasticsearch* can be started using:
 
-[float]
-[[jvm-version]]
-== Java (JVM) Version
+[source,sh]
+--------------------------------------------------
+$ bin/elasticsearch
+--------------------------------------------------
+
+Under *nix system, the command will start the process in the foreground.
+To run it in the background, add the `-d` switch to it:
+
+[source,sh]
+--------------------------------------------------
+$ bin/elasticsearch -d
+--------------------------------------------------
 
 Elasticsearch is built using Java, and requires at least
-http://www.oracle.com/technetwork/java/javase/downloads/index.html[Java 8] in
-order to run. Only Oracle's Java and the OpenJDK are supported. The same JVM
-version should be used on all Elasticsearch nodes and clients.
+http://java.sun.com/javase/downloads/index.jsp[Java 6] in order to run.
+The version of Java that will be used can be set by setting the
+`JAVA_HOME` environment variable.
 
-We recommend installing Java version *{jdk} or later*. Elasticsearch will
-refuse to start if a known-bad version of Java is used.
+.*NIX
+*************************************************************************
+There are added features when using the `elasticsearch` shell script.
+The first, which was explained earlier, is the ability to easily run the
+process either in the foreground or the background.
 
-The version of Java that Elasticsearch will use can be configured by setting
-the `JAVA_HOME` environment variable.
+Another feature is the ability to pass `-X` and `-D` or getopt long style
+configuration parameters directly to the script. When set, all override
+anything set using either `JAVA_OPTS` or `ES_JAVA_OPTS`. For example:
 
-NOTE: Elasticsearch ships with default configuration for running Elasticsearch on 64-bit server JVMs. If you are using a 32-bit client JVM,
-you must remove `-server` from <<jvm-options,jvm.options>> and if you are using any 32-bit JVM you should reconfigure the thread stack size
-from `-Xss1m` to `-Xss320k`.
-
+[source,sh]
+--------------------------------------------------
+$ bin/elasticsearch -Xmx2g -Xms2g -Des.index.store.type=memory --node.name=my-node
+--------------------------------------------------
+*************************************************************************
 --
-
-include::setup/install.asciidoc[]
 
 include::setup/configuration.asciidoc[]
 
-include::setup/important-settings.asciidoc[]
+include::setup/as-a-service.asciidoc[]
 
-include::setup/secure-settings.asciidoc[]
+include::setup/as-a-service-win.asciidoc[]
 
-include::setup/bootstrap-checks.asciidoc[]
+include::setup/dir-layout.asciidoc[]
 
-include::setup/sysconfig.asciidoc[]
-
-include::setup/upgrade.asciidoc[]
-
-include::setup/stopping.asciidoc[]
+include::setup/repositories.asciidoc[]

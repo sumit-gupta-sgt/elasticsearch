@@ -1,5 +1,6 @@
-[[modules-discovery-azure-classic]]
-=== Azure Classic Discovery
+[[modules-discovery-azure]]
+=== Azure Discovery
 
-Azure classic discovery allows to use the Azure Classic APIs to perform automatic discovery (similar to multicast).
-It is available as a plugin. See {plugins}/discovery-azure-classic.html[discovery-azure-classic] for more information.
+Azure discovery allows to use the Azure APIs to perform automatic discovery (similar to multicast).
+Please check the https://github.com/elasticsearch/elasticsearch-cloud-azure[plugin website]
+to find the full documentation.

@@ -1,22 +1,15 @@
 [[elasticsearch-reference]]
-= Elasticsearch Reference
-
-include::../Versions.asciidoc[]
-
-
-include::getting-started.asciidoc[]
+= Reference
 
 include::setup.asciidoc[]
 
-include::migration/index.asciidoc[]
+include::migration/migrate_1_0.asciidoc[]
 
 include::api-conventions.asciidoc[]
 
 include::docs.asciidoc[]
 
 include::search.asciidoc[]
-
-include::aggregations.asciidoc[]
 
 include::indices.asciidoc[]
 
@@ -34,18 +27,9 @@ include::modules.asciidoc[]
 
 include::index-modules.asciidoc[]
 
-include::ingest.asciidoc[]
-
-include::how-to.asciidoc[]
-
 include::testing.asciidoc[]
 
 include::glossary.asciidoc[]
 
-//////
- include::release-notes.asciidoc[]
-//////
 
-include::painless-api-reference.asciidoc[]
 
-include::redirects.asciidoc[]

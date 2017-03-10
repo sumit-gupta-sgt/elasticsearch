@@ -1,20 +1,13 @@
 [[cat-pending-tasks]]
-== cat pending tasks
+== Cluster Pending Tasks
 
 `pending_tasks` provides the same information as the
 <<cluster-pending,`/_cluster/pending_tasks`>> API in a
-convenient tabular format. For example:
+convenient tabular format.
 
-[source,js]
+[source,shell]
 --------------------------------------------------
-GET /_cat/pending_tasks?v
---------------------------------------------------
-// CONSOLE
-
-Might look like:
-
-[source,txt]
---------------------------------------------------
+% curl 'localhost:9200/_cat/pending_tasks?v'
 insertOrder timeInQueue priority source
        1685       855ms HIGH     update-mapping [foo][t]
        1686       843ms HIGH     update-mapping [foo][t]
@@ -24,6 +17,3 @@ insertOrder timeInQueue priority source
        1690       787ms HIGH     update-mapping [foo][t]
        1691       773ms HIGH     update-mapping [foo][t]
 --------------------------------------------------
-// TESTRESPONSE[s/(\n.+)+/(\\n.+)*/ _cat]
-// We can't assert anything about the tasks in progress here because we don't
-// know what might be in progress....
