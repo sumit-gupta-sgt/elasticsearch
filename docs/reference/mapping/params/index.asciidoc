@@ -2,6 +2,12 @@
 === `index`
 
 The `index` option controls whether field values are indexed. It accepts `true`
-or `false`. Fields that are not indexed are not queryable.
+or `false` and defaults to `true`. 
 
-NOTE: For the legacy mapping type <<string,`string`>> the `index` option only accepts legacy values `analyzed` (default, treat as full-text field), `not_analyzed` (treat as keyword field) and `no`.
+Indexing a field creates data structures that enable the field to be queried 
+efficiently. <<number,Numeric types>>, <<date,date types>>,
+the <<boolean,boolean type>>, <<ip,ip type>>, <<geo-point,geo_point type>> and the
+<<keyword,keyword type>> can also be queried when they are not <<mapping-index,indexed>>
+ but only have doc values enabled. Queries on these fields are slow as a full scan
+ of the index has to be made. All other fields are not queryable.
+

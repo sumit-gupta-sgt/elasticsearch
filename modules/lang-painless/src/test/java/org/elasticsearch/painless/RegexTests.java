@@ -1,51 +1,40 @@
 /*
- * Licensed to Elasticsearch under one or more contributor
- * license agreements. See the NOTICE file distributed with
- * this work for additional information regarding copyright
- * ownership. Elasticsearch licenses this file to you under
- * the Apache License, Version 2.0 (the "License"); you may
- * not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+ * or more contributor license agreements. Licensed under the "Elastic License
+ * 2.0", the "GNU Affero General Public License v3.0 only", and the "Server Side
+ * Public License v 1"; you may not use this file except in compliance with, at
+ * your election, the "Elastic License 2.0", the "GNU Affero General Public
+ * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
 package org.elasticsearch.painless;
 
-import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.script.ScriptException;
 
 import java.nio.CharBuffer;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 
 import static java.util.Collections.singletonMap;
-import static org.hamcrest.Matchers.containsString;
 
 public class RegexTests extends ScriptTestCase {
-    @Override
-    protected Settings scriptEngineSettings() {
-        // Enable regexes just for this test. They are disabled by default.
-        return Settings.builder()
-                .put(CompilerSettings.REGEX_ENABLED.getKey(), true)
-                .build();
-    }
-
     public void testPatternAfterReturn() {
         assertEquals(true, exec("return 'foo' ==~ /foo/"));
         assertEquals(false, exec("return 'bar' ==~ /foo/"));
     }
 
-    public void testSlashesEscapePattern() {
-        assertEquals(true, exec("return '//' ==~ /\\/\\//"));
+    public void testBackslashEscapesForwardSlash() {
+        assertEquals(true, exec("'//' ==~ /\\/\\//"));
+    }
+
+    public void testBackslashEscapeBackslash() {
+        // Both of these are single backslashes but java escaping + Painless escaping....
+        assertEquals(true, exec("'\\\\' ==~ /\\\\/"));
+    }
+
+    public void testRegexIsNonGreedy() {
+        assertEquals(true, exec("def s = /\\\\/.split('.\\\\.'); return s[1] ==~ /\\./"));
     }
 
     public void testPatternAfterAssignment() {
@@ -69,19 +58,19 @@ public class RegexTests extends ScriptTestCase {
         assertEquals(true, exec("return !/foo/.matcher('bar').matches()"));
     }
 
-    public void testInTernaryCondition()  {
+    public void testInTernaryCondition() {
         assertEquals(true, exec("return /foo/.matcher('foo').matches() ? true : false"));
-        assertEquals(1, exec("def i = 0; i += /foo/.matcher('foo').matches() ? 1 : 1; return i"));
+        assertEquals(1, exec("def i = 0; i += /foo/.matcher('foo').matches() ? 1 : 0; return i"));
         assertEquals(true, exec("return 'foo' ==~ /foo/ ? true : false"));
-        assertEquals(1, exec("def i = 0; i += 'foo' ==~ /foo/ ? 1 : 1; return i"));
+        assertEquals(1, exec("def i = 0; i += 'foo' ==~ /foo/ ? 1 : 0; return i"));
     }
 
-    public void testInTernaryTrueArm()  {
+    public void testInTernaryTrueArm() {
         assertEquals(true, exec("def i = true; return i ? /foo/.matcher('foo').matches() : false"));
         assertEquals(true, exec("def i = true; return i ? 'foo' ==~ /foo/ : false"));
     }
 
-    public void testInTernaryFalseArm()  {
+    public void testInTernaryFalseArm() {
         assertEquals(true, exec("def i = false; return i ? false : 'foo' ==~ /foo/"));
     }
 
@@ -141,11 +130,15 @@ public class RegexTests extends ScriptTestCase {
 
     // Make sure some methods on Pattern are whitelisted
     public void testSplit() {
-        assertArrayEquals(new String[] {"cat", "dog"}, (String[]) exec("/,/.split('cat,dog')"));
+        assertArrayEquals(new String[] { "cat", "dog" }, (String[]) exec("/,/.split('cat,dog')"));
+    }
+
+    public void testSplitWithLimit() {
+        assertArrayEquals(new String[] { "cat", "dog,pig" }, (String[]) exec("/,/.split('cat,dog,pig', 2)"));
     }
 
     public void testSplitAsStream() {
-        assertEquals(new HashSet<>(Arrays.asList("cat", "dog")), exec("/,/.splitAsStream('cat,dog').collect(Collectors.toSet())"));
+        assertEquals(new HashSet<String>(Arrays.asList("cat", "dog")), exec("/,/.splitAsStream('cat,dog').collect(Collectors.toSet())"));
     }
 
     // Make sure the flags are set
@@ -191,8 +184,10 @@ public class RegexTests extends ScriptTestCase {
 
     public void testReplaceAllMatchesCharSequence() {
         CharSequence charSequence = CharBuffer.wrap("the quick brown fox");
-        assertEquals("thE qUIck brOwn fOx",
-                exec("params.a.replaceAll(/[aeiou]/, m -> m.group().toUpperCase(Locale.ROOT))", singletonMap("a", charSequence), true));
+        assertEquals(
+            "thE qUIck brOwn fOx",
+            exec("params.a.replaceAll(/[aeiou]/, m -> m.group().toUpperCase(Locale.ROOT))", singletonMap("a", charSequence), true)
+        );
     }
 
     public void testReplaceAllNoMatchString() {
@@ -201,26 +196,33 @@ public class RegexTests extends ScriptTestCase {
 
     public void testReplaceAllNoMatchCharSequence() {
         CharSequence charSequence = CharBuffer.wrap("i am cat");
-        assertEquals("i am cat",
-                exec("params.a.replaceAll(/dolphin/, m -> m.group().toUpperCase(Locale.ROOT))", singletonMap("a", charSequence), true));
+        assertEquals(
+            "i am cat",
+            exec("params.a.replaceAll(/dolphin/, m -> m.group().toUpperCase(Locale.ROOT))", singletonMap("a", charSequence), true)
+        );
     }
 
     public void testReplaceAllQuoteReplacement() {
-        assertEquals("th/E q/U/Ick br/Own f/Ox",
-                exec("'the quick brown fox'.replaceAll(/[aeiou]/, m -> '/' + m.group().toUpperCase(Locale.ROOT))"));
-        assertEquals("th$E q$U$Ick br$Own f$Ox",
-                exec("'the quick brown fox'.replaceAll(/[aeiou]/, m -> '$' + m.group().toUpperCase(Locale.ROOT))"));
+        assertEquals(
+            "th/E q/U/Ick br/Own f/Ox",
+            exec("'the quick brown fox'.replaceAll(/[aeiou]/, m -> '/' + m.group().toUpperCase(Locale.ROOT))")
+        );
+        assertEquals(
+            "th$E q$U$Ick br$Own f$Ox",
+            exec("'the quick brown fox'.replaceAll(/[aeiou]/, m -> '$' + m.group().toUpperCase(Locale.ROOT))")
+        );
     }
 
     public void testReplaceFirstMatchesString() {
-        assertEquals("thE quick brown fox",
-                exec("'the quick brown fox'.replaceFirst(/[aeiou]/, m -> m.group().toUpperCase(Locale.ROOT))"));
+        assertEquals("thE quick brown fox", exec("'the quick brown fox'.replaceFirst(/[aeiou]/, m -> m.group().toUpperCase(Locale.ROOT))"));
     }
 
     public void testReplaceFirstMatchesCharSequence() {
         CharSequence charSequence = CharBuffer.wrap("the quick brown fox");
-        assertEquals("thE quick brown fox",
-                exec("params.a.replaceFirst(/[aeiou]/, m -> m.group().toUpperCase(Locale.ROOT))", singletonMap("a", charSequence), true));
+        assertEquals(
+            "thE quick brown fox",
+            exec("params.a.replaceFirst(/[aeiou]/, m -> m.group().toUpperCase(Locale.ROOT))", singletonMap("a", charSequence), true)
+        );
     }
 
     public void testReplaceFirstNoMatchString() {
@@ -229,37 +231,80 @@ public class RegexTests extends ScriptTestCase {
 
     public void testReplaceFirstNoMatchCharSequence() {
         CharSequence charSequence = CharBuffer.wrap("i am cat");
-        assertEquals("i am cat",
-                exec("params.a.replaceFirst(/dolphin/, m -> m.group().toUpperCase(Locale.ROOT))", singletonMap("a", charSequence), true));
+        assertEquals(
+            "i am cat",
+            exec("params.a.replaceFirst(/dolphin/, m -> m.group().toUpperCase(Locale.ROOT))", singletonMap("a", charSequence), true)
+        );
     }
 
     public void testReplaceFirstQuoteReplacement() {
-        assertEquals("th/E quick brown fox",
-                exec("'the quick brown fox'.replaceFirst(/[aeiou]/, m -> '/' + m.group().toUpperCase(Locale.ROOT))"));
-        assertEquals("th$E quick brown fox",
-                exec("'the quick brown fox'.replaceFirst(/[aeiou]/, m -> '$' + m.group().toUpperCase(Locale.ROOT))"));
+        assertEquals(
+            "th/E quick brown fox",
+            exec("'the quick brown fox'.replaceFirst(/[aeiou]/, m -> '/' + m.group().toUpperCase(Locale.ROOT))")
+        );
+        assertEquals(
+            "th$E quick brown fox",
+            exec("'the quick brown fox'.replaceFirst(/[aeiou]/, m -> '$' + m.group().toUpperCase(Locale.ROOT))")
+        );
+    }
+
+    public void testStoreInMap() {
+        assertEquals(true, exec("Map m = [:]; m.a = /foo/; m.a.matcher('foo').matches()"));
+    }
+
+    public void testStoreInMapDef() {
+        assertEquals(true, exec("def m = [:]; m.a = /foo/; m.a.matcher('foo').matches()"));
+    }
+
+    public void testStoreInList() {
+        assertEquals(true, exec("List l = [null]; l.0 = /foo/; l.0.matcher('foo').matches()"));
+    }
+
+    public void testStoreInListDef() {
+        assertEquals(true, exec("def l = [null]; l.0 = /foo/; l.0.matcher('foo').matches()"));
+    }
+
+    public void testStoreInArray() {
+        assertEquals(true, exec("Pattern[] a = new Pattern[1]; a[0] = /foo/; a[0].matcher('foo').matches()"));
+    }
+
+    public void testStoreInArrayDef() {
+        assertEquals(true, exec("def a = new Pattern[1]; a[0] = /foo/; a[0].matcher('foo').matches()"));
     }
 
     public void testCantUsePatternCompile() {
-        IllegalArgumentException e = expectScriptThrows(IllegalArgumentException.class, () -> {
-            exec("Pattern.compile('aa')");
-        });
-        assertEquals("Unknown call [compile] with [1] arguments on type [Pattern].", e.getMessage());
+        IllegalArgumentException e = expectScriptThrows(IllegalArgumentException.class, () -> { exec("Pattern.compile('aa')"); });
+        assertTrue(e.getMessage().contains("[java.util.regex.Pattern, compile/1]"));
     }
 
     public void testBadRegexPattern() {
-        PatternSyntaxException e = expectScriptThrows(PatternSyntaxException.class, () -> {
+        ScriptException e = expectThrows(ScriptException.class, () -> {
             exec("/\\ujjjj/"); // Invalid unicode
         });
-        assertThat(e.getMessage(), containsString("Illegal Unicode escape sequence near index 2"));
-        assertThat(e.getMessage(), containsString("\\ujjjj"));
+        assertEquals(
+            "invalid regular expression: could not compile regex constant [\\ujjjj] with flags []: Illegal Unicode escape sequence",
+            e.getCause().getMessage()
+        );
+
+        // And make sure the location of the error points to the offset inside the pattern
+        assertScriptStack(e, "/\\ujjjj/", "   ^---- HERE");
+
+        e = expectThrows(ScriptException.class, () -> {
+            exec("/(?< >.+)/"); // Invalid capture name
+        });
+        assertEquals(
+            "invalid regular expression: could not compile regex constant [(?< >.+)] with flags []: "
+                + "capturing group name does not start with a Latin letter",
+            e.getCause().getMessage()
+        );
+
+        // And make sure the location of the error points to the offset inside the pattern
+        assertScriptStack(e, "/(?< >.+)/", "    ^---- HERE");
     }
 
     public void testRegexAgainstNumber() {
-        ClassCastException e = expectScriptThrows(ClassCastException.class, () -> {
-            exec("12 ==~ /cat/");
-        });
-        assertEquals("Cannot cast from [int] to [String].", e.getMessage());
+        ClassCastException e = expectScriptThrows(ClassCastException.class, () -> { exec("12 ==~ /cat/"); });
+        assertEquals("Cannot cast from [int] to [java.lang.String].", e.getMessage());
     }
 
     public void testBogusRegexFlag() {

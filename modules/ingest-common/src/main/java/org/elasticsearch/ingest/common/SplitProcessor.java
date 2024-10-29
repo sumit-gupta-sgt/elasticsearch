@@ -1,20 +1,10 @@
 /*
- * Licensed to Elasticsearch under one or more contributor
- * license agreements. See the NOTICE file distributed with
- * this work for additional information regarding copyright
- * ownership. Elasticsearch licenses this file to you under
- * the Apache License, Version 2.0 (the "License"); you may
- * not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+ * or more contributor license agreements. Licensed under the "Elastic License
+ * 2.0", the "GNU Affero General Public License v3.0 only", and the "Server Side
+ * Public License v 1"; you may not use this file except in compliance with, at
+ * your election, the "Elastic License 2.0", the "GNU Affero General Public
+ * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
 package org.elasticsearch.ingest.common;
@@ -32,7 +22,7 @@ import java.util.Map;
 /**
  * Processor that splits fields content into different items based on the occurrence of a specified separator.
  * New field value will be an array containing all of the different extracted items.
- * Throws exception if the field is null or a type other than string.
+ * Support fields of string type only, throws exception if a field is of a different type.
  */
 public final class SplitProcessor extends AbstractProcessor {
 
@@ -41,12 +31,24 @@ public final class SplitProcessor extends AbstractProcessor {
     private final String field;
     private final String separator;
     private final boolean ignoreMissing;
+    private final boolean preserveTrailing;
+    private final String targetField;
 
-    SplitProcessor(String tag, String field, String separator, boolean ignoreMissing) {
-        super(tag);
+    SplitProcessor(
+        String tag,
+        String description,
+        String field,
+        String separator,
+        boolean ignoreMissing,
+        boolean preserveTrailing,
+        String targetField
+    ) {
+        super(tag, description);
         this.field = field;
         this.separator = separator;
         this.ignoreMissing = ignoreMissing;
+        this.preserveTrailing = preserveTrailing;
+        this.targetField = targetField;
     }
 
     String getField() {
@@ -61,20 +63,29 @@ public final class SplitProcessor extends AbstractProcessor {
         return ignoreMissing;
     }
 
+    boolean isPreserveTrailing() {
+        return preserveTrailing;
+    }
+
+    String getTargetField() {
+        return targetField;
+    }
+
     @Override
-    public void execute(IngestDocument document) {
+    public IngestDocument execute(IngestDocument document) {
         String oldVal = document.getFieldValue(field, String.class, ignoreMissing);
 
         if (oldVal == null && ignoreMissing) {
-            return;
+            return document;
         } else if (oldVal == null) {
             throw new IllegalArgumentException("field [" + field + "] is null, cannot split.");
         }
 
-        String[] strings = oldVal.split(separator);
+        String[] strings = oldVal.split(separator, preserveTrailing ? -1 : 0);
         List<String> splitList = new ArrayList<>(strings.length);
         Collections.addAll(splitList, strings);
-        document.setFieldValue(field, splitList);
+        document.setFieldValue(targetField, splitList);
+        return document;
     }
 
     @Override
@@ -84,12 +95,18 @@ public final class SplitProcessor extends AbstractProcessor {
 
     public static class Factory implements Processor.Factory {
         @Override
-        public SplitProcessor create(Map<String, Processor.Factory> registry, String processorTag,
-                                     Map<String, Object> config) throws Exception {
+        public SplitProcessor create(
+            Map<String, Processor.Factory> registry,
+            String processorTag,
+            String description,
+            Map<String, Object> config
+        ) throws Exception {
             String field = ConfigurationUtils.readStringProperty(TYPE, processorTag, config, "field");
             boolean ignoreMissing = ConfigurationUtils.readBooleanProperty(TYPE, processorTag, config, "ignore_missing", false);
-            return new SplitProcessor(processorTag, field,
-                ConfigurationUtils.readStringProperty(TYPE, processorTag, config, "separator"), ignoreMissing);
+            boolean preserveTrailing = ConfigurationUtils.readBooleanProperty(TYPE, processorTag, config, "preserve_trailing", false);
+            String targetField = ConfigurationUtils.readStringProperty(TYPE, processorTag, config, "target_field", field);
+            String separator = ConfigurationUtils.readStringProperty(TYPE, processorTag, config, "separator");
+            return new SplitProcessor(processorTag, description, field, separator, ignoreMissing, preserveTrailing, targetField);
         }
     }
 }

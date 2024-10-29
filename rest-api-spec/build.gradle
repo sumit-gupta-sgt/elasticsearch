@@ -1,7 +1,66 @@
 apply plugin: 'elasticsearch.build'
-apply plugin: 'nebula.maven-base-publish'
-apply plugin: 'nebula.maven-scm'
+apply plugin: 'elasticsearch.publish'
+apply plugin: 'elasticsearch.rest-resources'
+apply plugin: 'elasticsearch.validate-rest-spec'
+apply plugin: 'elasticsearch.internal-yaml-rest-test'
+apply plugin: 'elasticsearch.yaml-rest-compat-test'
+apply plugin: 'elasticsearch.internal-test-artifact'
 
-test.enabled = false
-jarHell.enabled = false
-licenseHeaders.enabled = false
+restResources {
+  restTests {
+    includeCore '*'
+  }
+}
+
+// REST API specifications are published under the Apache 2.0 License
+ext.projectLicenses.set(['The Apache Software License, Version 2.0': 'http://www.apache.org/licenses/LICENSE-2.0'])
+licenseFile.set(rootProject.file('licenses/APACHE-LICENSE-2.0.txt'))
+
+configurations {
+  // configuration to make use by external yaml rest test plugin in our examples
+  // easy and efficient
+  basicRestSpecs {
+    attributes {
+      attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, ArtifactTypeDefinition.DIRECTORY_TYPE)
+    }
+  }
+}
+
+artifacts {
+  basicRestSpecs(new File(projectDir, "src/main/resources"))
+  restSpecs(new File(projectDir, "src/main/resources/rest-api-spec/api"))
+  restTests(new File(projectDir, "src/yamlRestTest/resources/rest-api-spec/test"))
+}
+
+dependencies {
+  clusterModules project(":modules:mapper-extras")
+  clusterModules project(":modules:rest-root")
+  clusterModules project(":modules:reindex")
+  clusterModules project(':modules:analysis-common')
+  clusterModules project(':modules:health-shards-availability')
+  clusterModules project(':modules:data-streams')
+}
+
+tasks.register('enforceYamlTestConvention').configure {
+  def tree = fileTree('src/main/resources/rest-api-spec/test')
+  doLast {
+    if (tree.files) {
+      throw new GradleException("There are YAML tests in src/main source set. These should be moved to src/yamlRestTest.")
+    }
+  }
+}
+
+tasks.named("precommit").configure {
+  dependsOn 'enforceYamlTestConvention'
+}
+
+tasks.named("yamlRestCompatTestTransform").configure ({ task ->
+  task.replaceValueInMatch("profile.shards.0.dfs.knn.0.query.0.description", "DocAndScoreQuery[0,...][0.009673266,...],0.009673266", "dfs knn vector profiling")
+  task.replaceValueInMatch("profile.shards.0.dfs.knn.0.query.0.description", "DocAndScoreQuery[0,...][0.009673266,...],0.009673266", "dfs knn vector profiling with vector_operations_count")
+  task.skipTest("indices.sort/10_basic/Index Sort", "warning does not exist for compatibility")
+  task.skipTest("search/330_fetch_fields/Test search rewrite", "warning does not exist for compatibility")
+  task.skipTest("indices.create/21_synthetic_source_stored/object param - nested object with stored array", "temporary until backported")
+  task.skipTest("cat.aliases/10_basic/Deprecated local parameter", "CAT APIs not covered by compatibility policy")
+  task.skipTest("cluster.desired_nodes/10_basic/Test delete desired nodes with node_version generates a warning", "node_version warning is removed in 9.0")
+  task.skipTest("cluster.desired_nodes/10_basic/Test update desired nodes with node_version generates a warning", "node_version warning is removed in 9.0")
+})

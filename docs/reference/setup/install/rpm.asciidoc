@@ -1,24 +1,30 @@
 [[rpm]]
 === Install Elasticsearch with RPM
 
+:include-xpack: true
+
 The RPM for Elasticsearch can be <<install-rpm,downloaded from our website>>
 or from our  <<rpm-repo,RPM repository>>. It can be used to install
 Elasticsearch on any RPM-based system such as OpenSuSE, SLES, Centos, Red Hat,
 and Oracle Enterprise.
 
 NOTE: RPM install is not supported on distributions with old versions of RPM,
-such as SLES 11 and CentOS 5.  Please see <<zip-targz>> instead.
+such as SLES 11 and CentOS 5. Please see <<targz>> instead.
+
+include::license.asciidoc[]
 
 The latest stable version of Elasticsearch can be found on the
 link:/downloads/elasticsearch[Download Elasticsearch] page. Other versions can
 be found on the link:/downloads/past-releases[Past Releases page].
 
-NOTE: Elasticsearch requires Java 8 or later. Use the
-http://www.oracle.com/technetwork/java/javase/downloads/index.html[official Oracle distribution]
-or an open-source distribution such as http://openjdk.java.net[OpenJDK].
+NOTE: Elasticsearch includes a bundled version of https://openjdk.java.net[OpenJDK]
+from the JDK maintainers (GPLv2+CE). To use your own version of Java,
+see the <<jvm-version, JVM version requirements>>
+
+TIP: For a step-by-step example of setting up the {stack} on your own premises, try out our tutorial: {stack-ref}/installing-stack-demo-self.html[Installing a self-managed Elastic Stack].
 
 [[rpm-key]]
-==== Import the Elasticsearch PGP Key
+==== Import the Elasticsearch GPG Key
 
 include::key.asciidoc[]
 
@@ -32,11 +38,9 @@ rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
 
 ifeval::["{release-state}"=="unreleased"]
 
-Version {version} of Elasticsearch has not yet been released.
+WARNING: Version {version} of Elasticsearch has not yet been released.
 
 endif::[]
-
-ifeval::["{release-state}"!="unreleased"]
 
 Create a file called `elasticsearch.repo` in the `/etc/yum.repos.d/` directory
 for RedHat based distributions, or in the `/etc/zypp/repos.d/` directory for
@@ -46,28 +50,26 @@ ifeval::["{release-state}"=="released"]
 
 ["source","sh",subs="attributes,callouts"]
 --------------------------------------------------
-[elasticsearch-{major-version}]
+[elasticsearch]
 name=Elasticsearch repository for {major-version} packages
-baseurl=https://artifacts.elastic.co/packages/{major-version}-prerelease/yum
+baseurl=https://artifacts.elastic.co/packages/{major-version}/yum
 gpgcheck=1
 gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
-enabled=1
+enabled=0
 autorefresh=1
 type=rpm-md
 --------------------------------------------------
-
-endif::[]
 
 ifeval::["{release-state}"=="prerelease"]
 
 ["source","sh",subs="attributes,callouts"]
 --------------------------------------------------
-[elasticsearch-{major-version}]
+[elasticsearch]
 name=Elasticsearch repository for {major-version} packages
-baseurl=https://artifacts.elastic.co/packages/{major-version}/yum
+baseurl=https://artifacts.elastic.co/packages/{major-version}-prerelease/yum
 gpgcheck=1
 gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
-enabled=1
+enabled=0
 autorefresh=1
 type=rpm-md
 --------------------------------------------------
@@ -78,13 +80,19 @@ And your repository is ready for use. You can now install Elasticsearch with one
 
 [source,sh]
 --------------------------------------------------
-sudo yum install elasticsearch <1>
-sudo dnf install elasticsearch <2>
-sudo zypper install elasticsearch <3>
+sudo yum install --enablerepo=elasticsearch elasticsearch <1>
+sudo dnf install --enablerepo=elasticsearch elasticsearch <2>
+sudo zypper modifyrepo --enable elasticsearch && \
+  sudo zypper install elasticsearch; \
+  sudo zypper modifyrepo --disable elasticsearch <3>
 --------------------------------------------------
 <1> Use `yum` on CentOS and older Red Hat based distributions.
 <2> Use `dnf` on Fedora and other newer Red Hat distributions.
 <3> Use `zypper` on OpenSUSE based distributions
+
+NOTE: The configured repository is disabled by default. This eliminates the possibility of accidentally
+upgrading `elasticsearch` when upgrading the rest of the system. Each install or upgrade command
+must explicitly enable the repository as indicated in the sample commands above.
 
 endif::[]
 
@@ -93,64 +101,54 @@ endif::[]
 
 ifeval::["{release-state}"=="unreleased"]
 
-Version {version} of Elasticsearch has not yet been released.
+WARNING: Version {version} of Elasticsearch has not yet been released. The RPM might not be available.
 
 endif::[]
 
-ifeval::["{release-state}"!="unreleased"]
-
-The RPM for Elastisearch v{version} can be downloaded from the website and installed as follows:
+The RPM for Elasticsearch v{version} can be downloaded from the website and installed as follows:
 
 ["source","sh",subs="attributes"]
 --------------------------------------------
-wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{version}.rpm
-sha1sum elasticsearch-{version}.rpm <1>
-sudo rpm --install elasticsearch-{version}.rpm
+wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{version}-x86_64.rpm
+wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{version}-x86_64.rpm.sha512
+shasum -a 512 -c elasticsearch-{version}-x86_64.rpm.sha512 <1>
+sudo rpm --install elasticsearch-{version}-x86_64.rpm
 --------------------------------------------
-<1> Compare the SHA produced by `sha1sum` or `shasum` with the
-    https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{version}.rpm.sha1[published SHA].
-
-endif::[]
+<1> Compares the SHA of the downloaded RPM and the published checksum, which should output
+    `elasticsearch-{version}-x86_64.rpm: OK`.
 
 include::skip-set-kernel-parameters.asciidoc[]
 
-include::init-systemd.asciidoc[]
+// Set a `distro` attribute so we can reuse files containing anchors
+:distro: rpm
+[id="rpm-security-configuration"]
+include::package-security.asciidoc[]
 
-[[rpm-running-init]]
-==== Running Elasticsearch with SysV `init`
+ifdef::include-xpack[]
+[role="xpack"]
+[[rpm-enable-indices]]
+==== Enable automatic creation of system indices
 
-Use the `chkconfig` command to configure Elasticsearch to start automatically
-when the system boots up:
+include::xpack-indices.asciidoc[]
 
-[source,sh]
---------------------------------------------------
-sudo chkconfig --add elasticsearch
---------------------------------------------------
+endif::include-xpack[]
 
-Elasticsearch can be started and stopped using the `service` command:
+:include-xpack!: true
 
-[source,sh]
---------------------------------------------
-sudo -i service elasticsearch start
-sudo -i service elasticsearch stop
---------------------------------------------
-
-If Elasticsearch fails to start for any reason, it will print the reason for
-failure to STDOUT. Log files can be found in `/var/log/elasticsearch/`.
-
-
-[[rpm-running-systemd]]
+[id="{distro}-running-systemd"]
 include::systemd.asciidoc[]
 
 [[rpm-check-running]]
+
+:es-config:       /etc/elasticsearch
+:slash:        /
+
 include::check-running.asciidoc[]
 
 [[rpm-configuring]]
 ==== Configuring Elasticsearch
 
-Elasticsearch loads its configuration from the `/etc/elasticsearch/elasticsearch.yml`
-file by default.  The format of this config file is explained in
-<<settings>>.
+include::etc-elasticsearch.asciidoc[]
 
 The RPM also has a system configuration file (`/etc/sysconfig/elasticsearch`),
 which allows you to set the following parameters:
@@ -159,7 +157,9 @@ include::sysconfig-file.asciidoc[]
 
 NOTE: Distributions that use `systemd` require that system resource limits be
 configured via `systemd` rather than via the `/etc/sysconfig/elasticsearch`
-file.  See <<systemd>> for more information.
+file. See <<systemd>> for more information.
+
+include::connect-clients.asciidoc[]
 
 [[rpm-layout]]
 ==== Directory layout of RPM
@@ -185,18 +185,30 @@ locations for an RPM-based system:
 | conf
   | Configuration files including `elasticsearch.yml`
   | /etc/elasticsearch
-  | path.conf
+  | <<config-files-location,ES_PATH_CONF>>
 
 | conf
   | Environment variables including heap size, file descriptors.
   | /etc/sysconfig/elasticsearch
  d|
 
+| conf
+| Generated TLS keys and certificates for the transport and http layer.
+| /etc/elasticsearch/certs
+d|
+
 | data
   | The location of the data files of each index / shard allocated
-    on the node. Can hold multiple locations.
+    on the node.
   | /var/lib/elasticsearch
   | path.data
+
+| jdk
+  | The bundled Java Development Kit used to run Elasticsearch. Can
+    be overridden by setting the `ES_JAVA_HOME` environment variable
+    in `/etc/sysconfig/elasticsearch`.
+  | /usr/share/elasticsearch/jdk
+ d|
 
 | logs
   | Log files location.
@@ -213,11 +225,7 @@ locations for an RPM-based system:
  d| Not configured
   | path.repo
 
-| script
-  | Location of script files.
-  | /etc/elasticsearch/scripts
-  | path.scripts
-
 |=======================================================================
 
+include::security-files-reference.asciidoc[]
 include::next-steps.asciidoc[]

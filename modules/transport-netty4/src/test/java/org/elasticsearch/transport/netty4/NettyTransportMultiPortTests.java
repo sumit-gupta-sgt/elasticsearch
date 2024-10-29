@@ -1,36 +1,26 @@
 /*
- * Licensed to Elasticsearch under one or more contributor
- * license agreements. See the NOTICE file distributed with
- * this work for additional information regarding copyright
- * ownership. Elasticsearch licenses this file to you under
- * the Apache License, Version 2.0 (the "License"); you may
- * not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+ * or more contributor license agreements. Licensed under the "Elastic License
+ * 2.0", the "GNU Affero General Public License v3.0 only", and the "Server Side
+ * Public License v 1"; you may not use this file except in compliance with, at
+ * your election, the "Elastic License 2.0", the "GNU Affero General Public
+ * License v3.0 only", or the "Server Side Public License, v 1".
  */
 package org.elasticsearch.transport.netty4;
 
+import org.elasticsearch.TransportVersion;
 import org.elasticsearch.common.component.Lifecycle;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.network.NetworkUtils;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.BigArrays;
-import org.elasticsearch.common.util.MockBigArrays;
+import org.elasticsearch.common.util.MockPageCacheRecycler;
+import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.indices.breaker.NoneCircuitBreakerService;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TcpTransport;
-import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.transport.TransportSettings;
 import org.junit.Before;
 
@@ -60,7 +50,7 @@ public class NettyTransportMultiPortTests extends ESTestCase {
             .build();
 
         ThreadPool threadPool = new TestThreadPool("tst");
-        try (TcpTransport<?> transport = startTransport(settings, threadPool)) {
+        try (TcpTransport transport = startTransport(settings, threadPool)) {
             assertEquals(1, transport.profileBoundAddresses().size());
             assertEquals(1, transport.boundAddress().boundAddresses().length);
         } finally {
@@ -76,7 +66,7 @@ public class NettyTransportMultiPortTests extends ESTestCase {
             .build();
 
         ThreadPool threadPool = new TestThreadPool("tst");
-        try (TcpTransport<?> transport = startTransport(settings, threadPool)) {
+        try (TcpTransport transport = startTransport(settings, threadPool)) {
             assertEquals(1, transport.profileBoundAddresses().size());
             assertEquals(1, transport.boundAddress().boundAddresses().length);
         } finally {
@@ -93,9 +83,9 @@ public class NettyTransportMultiPortTests extends ESTestCase {
             .build();
 
         ThreadPool threadPool = new TestThreadPool("tst");
-        try (TcpTransport<?> transport = startTransport(settings, threadPool)) {
-            assertEquals(0, transport.profileBoundAddresses().size());
-            assertEquals(1, transport.boundAddress().boundAddresses().length);
+        try {
+            IllegalStateException ex = expectThrows(IllegalStateException.class, () -> startTransport(settings, threadPool));
+            assertEquals("profile [client1] has no port configured", ex.getMessage());
         } finally {
             terminate(threadPool);
         }
@@ -109,7 +99,7 @@ public class NettyTransportMultiPortTests extends ESTestCase {
             .build();
 
         ThreadPool threadPool = new TestThreadPool("tst");
-        try (TcpTransport<?> transport = startTransport(settings, threadPool)) {
+        try (TcpTransport transport = startTransport(settings, threadPool)) {
             assertEquals(0, transport.profileBoundAddresses().size());
             assertEquals(1, transport.boundAddress().boundAddresses().length);
         } finally {
@@ -117,32 +107,21 @@ public class NettyTransportMultiPortTests extends ESTestCase {
         }
     }
 
-    public void testThatProfileWithoutValidNameIsIgnored() throws Exception {
-        Settings settings = Settings.builder()
-            .put("network.host", host)
-            .put(TransportSettings.PORT.getKey(), 0)
-            // mimics someone trying to define a profile for .local which is the profile for a node request to itself
-            .put("transport.profiles." + TransportService.DIRECT_RESPONSE_PROFILE + ".port", 22) // will not actually bind to this
-            .put("transport.profiles..port", 23) // will not actually bind to this
-            .build();
-
-        ThreadPool threadPool = new TestThreadPool("tst");
-        try (TcpTransport<?> transport = startTransport(settings, threadPool)) {
-            assertEquals(0, transport.profileBoundAddresses().size());
-            assertEquals(1, transport.boundAddress().boundAddresses().length);
-        } finally {
-            terminate(threadPool);
-        }
-    }
-
-    private TcpTransport<?> startTransport(Settings settings, ThreadPool threadPool) {
-        BigArrays bigArrays = new MockBigArrays(Settings.EMPTY, new NoneCircuitBreakerService());
-        TcpTransport<?> transport = new Netty4Transport(settings, threadPool, new NetworkService(settings, Collections.emptyList()),
-            bigArrays, new NamedWriteableRegistry(Collections.emptyList()), new NoneCircuitBreakerService());
+    private TcpTransport startTransport(Settings settings, ThreadPool threadPool) {
+        PageCacheRecycler recycler = new MockPageCacheRecycler(Settings.EMPTY);
+        TcpTransport transport = new Netty4Transport(
+            settings,
+            TransportVersion.current(),
+            threadPool,
+            new NetworkService(Collections.emptyList()),
+            recycler,
+            new NamedWriteableRegistry(Collections.emptyList()),
+            new NoneCircuitBreakerService(),
+            new SharedGroupFactory(settings)
+        );
         transport.start();
 
         assertThat(transport.lifecycleState(), is(Lifecycle.State.STARTED));
         return transport;
     }
-
 }

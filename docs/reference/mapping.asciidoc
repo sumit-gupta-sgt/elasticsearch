@@ -5,186 +5,118 @@
 --
 
 Mapping is the process of defining how a document, and the fields it contains,
-are stored and indexed.  For instance, use mappings to define:
+are stored and indexed.
 
-* which string fields should be treated as full text fields.
-* which fields contain numbers, dates, or geolocations.
-* whether the values of all fields in the document should be
-  indexed into the catch-all <<mapping-all-field,`_all`>> field.
-* the <<mapping-date-format,format>> of date values.
-* custom rules to control the mapping for
-  <<dynamic-mapping,dynamically added fields>>.
+Each document is a collection of fields, which each have their own
+<<mapping-types,data type>>. When mapping your data, you create a mapping
+definition, which contains a list of fields that are pertinent to the document.
+A mapping definition also includes <<mapping-fields,metadata fields>>, like the
+`_source` field, which customize how a document's associated metadata is
+handled.
 
-[float]
-[[mapping-type]]
-== Mapping Types
+Use _dynamic mapping_ and _explicit mapping_ to define your data. Each method
+provides different benefits based on where you are in your data journey. For
+example, explicitly map fields where you don't want to use the defaults, or to
+gain greater control over which fields are created. You can then allow {es} to
+add other fields dynamically.
 
-Each index has one or more _mapping types_, which are used to divide the
-documents in an index into logical groups. User documents might be stored in a
-`user` type, and blog posts in a `blogpost` type.
+NOTE: Before 7.0.0, the mapping definition included a type name.
+{es} 7.0.0 and later no longer accept a _default_ mapping. See <<removal-of-types>>.
 
-Each mapping type has:
+.Experiment with mapping options
+****
+<<runtime-search-request,Define runtime fields in a search request>> to
+experiment with different mapping options, and also fix mistakes in your index
+mapping values by overriding values in the mapping during the search request.
+****
 
-<<mapping-fields,Meta-fields>>::
-
-Meta-fields are used to customize how a document's metadata associated is
-treated. Examples of meta-fields include the document's
-<<mapping-index-field,`_index`>>, <<mapping-type-field,`_type`>>,
-<<mapping-id-field,`_id`>>,  and <<mapping-source-field,`_source`>> fields.
-
-<<mapping-types,Fields>> or _properties_::
-
-Each mapping type contains a list of fields or `properties` pertinent to that
-type.  A `user` type might contain `title`, `name`, and `age` fields, while a
-`blogpost` type might contain `title`, `body`, `user_id` and `created` fields.
-Fields with the same name in different mapping types in the same index
-<<field-conflicts,must have the same mapping>>.
-
-
-[float]
-== Field datatypes
-
-Each field has a data `type` which can be:
-
-* a simple type like <<text,`text`>>, <<keyword,`keyword`>>, <<date,`date`>>, <<number,`long`>>,
-  <<number,`double`>>, <<boolean,`boolean`>> or <<ip,`ip`>>.
-* a type which supports the hierarchical nature of JSON such as
-  <<object,`object`>> or <<nested,`nested`>>.
-* or a specialised type like <<geo-point,`geo_point`>>,
-  <<geo-shape,`geo_shape`>>, or <<search-suggesters-completion,`completion`>>.
-
-It is often useful to index the same field in different ways for different
-purposes. For instance, a `string` field could be <<mapping-index,indexed>> as
-a `text` field for full-text search, and as a `keyword` field for
-sorting or aggregations.  Alternatively, you could index a string field with
-the <<analysis-standard-analyzer,`standard` analyzer>>, the
-<<english-analyzer,`english`>> analyzer, and the
-<<french-analyzer,`french` analyzer>>.
-
-This is the purpose of _multi-fields_.  Most datatypes support multi-fields
-via the <<multi-fields>> parameter.
-
-[[mapping-limit-settings]]
-[float]
-=== Settings to prevent mappings explosion
-
-The following settings allow you to limit the number of field mappings that
-can be created manually or dynamically, in order to prevent bad documents from
-causing a mapping explosion:
-
-`index.mapping.total_fields.limit`::
-    The maximum number of fields in an index. The default value is `1000`.
-
-`index.mapping.depth.limit`::
-    The maximum depth for a field, which is measured as the number of inner
-    objects. For instance, if all fields are defined at the root object level,
-    then the depth is `1`. If there is one object mapping, then the depth is
-    `2`, etc. The default is `20`.
-
-`index.mapping.nested_fields.limit`::
-    The maximum number of `nested` fields in an index, defaults to `50`.
-    Indexing 1 document with 100 nested fields actually indexes 101 documents
-    as each nested document is indexed as a separate hidden document.
-
-
-[float]
+[discrete]
+[[mapping-dynamic]]
 == Dynamic mapping
 
-Fields and mapping types do not need to be defined before being used. Thanks
-to _dynamic mapping_, new mapping types and new field names will be added
-automatically, just by indexing a document. New fields can be added both to
-the top-level mapping type, and to inner <<object,`object`>>  and
-<<nested,`nested`>> fields.
+When you use <<dynamic-field-mapping,dynamic mapping>>, {es} automatically
+attempts to detect the data type of fields in your documents. This allows 
+you to get started quickly by just adding data to an index. If you index
+additional documents with new fields, {es} will add these fields automatically. 
+You can add fields to the top-level mapping, and to inner <<object,`object`>> 
+and <<nested,`nested`>> fields.
 
-The
-<<dynamic-mapping,dynamic mapping>> rules can be configured to
-customise the mapping that is used for new types and new fields.
+Use <<dynamic-templates,dynamic templates>> to define custom mappings that are
+applied to dynamically added fields based on the matching condition.
 
-[float]
-== Explicit mappings
+[discrete]
+[[mapping-explicit]]
+== Explicit mapping
 
-You know more about your data than Elasticsearch can guess, so while dynamic
-mapping can be useful to get started, at some point you will want to specify
-your own explicit mappings.
+Use <<explicit-mapping,explicit mapping>> to define exactly how data types
+are mapped to fields, customized to your specific use case.
 
-You can create mapping types and field mappings when you
-<<indices-create-index,create an index>>, and you can add mapping types and
-fields to an existing index with the <<indices-put-mapping,PUT mapping API>>.
+Defining your own mappings enables you to:
 
-[float]
-== Updating existing mappings
+* Define which string fields should be treated as full-text fields.
+* Define which fields contain numbers, dates, or geolocations.
+* Use data types that cannot be automatically detected (such as `geo_point` and `geo_shape`.)
+* Choose date value <<mapping-date-format,formats>>, including custom date formats.
+* Create custom rules to control the mapping for <<dynamic-mapping,dynamically added fields>>.
+* Optimize fields for partial matching.
+* Perform language-specific text analysis.
 
-Other than where documented, *existing type and field mappings cannot be
-updated*. Changing the mapping would mean invalidating already indexed
-documents.  Instead, you should create a new index with the correct mappings
-and reindex your data into that index.
+[TIP]
+====
+It’s often useful to index the same field in different ways for different purposes.
+For example, you might want to index a string field as both a text field for full-text 
+search and as a keyword field for sorting or aggregating your data. Or, you might 
+choose to use more than one language analyzer to process the contents of a string field 
+that contains user input.
+====
 
-[[field-conflicts]]
-[float]
-== Fields are shared across mapping types
+Use <<runtime-mapping-fields,runtime fields>> to make schema changes without
+reindexing. You can use runtime fields in conjunction with indexed fields to
+balance resource usage and performance. Your index will be smaller, but with
+slower search performance.
 
-Mapping types are used to group fields, but the fields in each mapping type
-are not independent of each other. Fields with:
+[discrete]
+[[mapping-manage-update]]
+== Managing and updating mappings
 
-* the _same name_
-* in the _same index_
-* in _different mapping types_
-* map to the _same field_ internally,
-* and *must have the same mapping*.
+Explicit mappings should be defined at index creation for fields you know in advance. 
+You can still add _new fields_ to mappings at any time, as your data evolves.
 
-If a `title` field exists in both the `user` and `blogpost` mapping types, the
-`title` fields must have exactly the same mapping in each type. The only
-exceptions to this rule are the <<copy-to>>, <<dynamic>>, <<enabled>>,
-<<ignore-above>>, and <<properties>> parameters, which may have different
-settings per field.
+Use the <<indices-put-mapping,Update mapping API>> to update an existing mapping.
 
-Usually, fields with the same name also contain the same type of data, so
-having the same mapping is not a problem.  When conflicts do arise, these can
-be solved by choosing more descriptive names, such as `user_title` and
-`blog_title`.
+In most cases, you can't change mappings for fields that are already mapped.
+These changes require <<docs-reindex,reindexing>>.
 
-[float]
-== Example mapping
+However, you can _update_ mappings under certain conditions:
 
-A mapping for the example described above could be specified when creating the
-index, as follows:
+* You can add new fields to an existing mapping at any time, explicitly or dynamically.
+* You can add new <<multi-fields,multi-fields>> for existing fields.
+** Documents indexed before the mapping update will not have values for the new multi-fields until they are updated or reindexed. Documents indexed after the mapping change will automatically have values for the new multi-fields.
+* Some <<mapping-params,mapping parameters>> can be updated for existing fields of certain <<mapping-types,data types>>.
 
-[source,js]
----------------------------------------
-PUT my_index <1>
-{
-  "mappings": {
-    "user": { <2>
-      "properties": { <3>
-        "title":    { "type": "text"  }, <4>
-        "name":     { "type": "text"  }, <4>
-        "age":      { "type": "integer" }  <4>
-      }
-    },
-    "blogpost": { <2>
-      "properties": { <3>
-        "title":    { "type": "text"  }, <4>
-        "body":     { "type": "text"  }, <4>
-        "user_id":  {
-          "type":   "keyword" <4>
-        },
-        "created":  {
-          "type":   "date", <4>
-          "format": "strict_date_optional_time||epoch_millis"
-        }
-      }
-    }
-  }
-}
----------------------------------------
-// CONSOLE
-<1> Create an index called `my_index`.
-<2> Add mapping types called `user` and `blogpost`.
-<3> Specify fields or _properties_ in each mapping type.
-<4> Specify the data `type` and mapping for each field.
+[discrete]
+[[mapping-limit-settings]]
+== Prevent mapping explosions
 
+Defining too many fields in an index can lead to a mapping explosion, which can
+cause out of memory errors and difficult situations to recover from.
+
+Consider a situation where every new document inserted
+introduces new fields, such as with <<dynamic-mapping,dynamic mapping>>.
+Each new field is added to the index mapping, which can become a
+problem as the mapping grows.
+
+Use the <<mapping-settings-limit,mapping limit settings>> to limit the number
+of field mappings (created manually or dynamically) and prevent documents from
+causing a mapping explosion.
 
 --
+
+include::mapping/dynamic-mapping.asciidoc[]
+
+include::mapping/explicit-mapping.asciidoc[]
+
+include::mapping/runtime.asciidoc[]
 
 include::mapping/types.asciidoc[]
 
@@ -192,4 +124,6 @@ include::mapping/fields.asciidoc[]
 
 include::mapping/params.asciidoc[]
 
-include::mapping/dynamic-mapping.asciidoc[]
+include::mapping/mapping-settings-limit.asciidoc[]
+
+include::mapping/removal_of_types.asciidoc[]

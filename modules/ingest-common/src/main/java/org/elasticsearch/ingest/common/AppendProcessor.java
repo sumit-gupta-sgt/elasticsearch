@@ -1,31 +1,22 @@
 /*
- * Licensed to Elasticsearch under one or more contributor
- * license agreements. See the NOTICE file distributed with
- * this work for additional information regarding copyright
- * ownership. Elasticsearch licenses this file to you under
- * the Apache License, Version 2.0 (the "License"); you may
- * not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+ * or more contributor license agreements. Licensed under the "Elastic License
+ * 2.0", the "GNU Affero General Public License v3.0 only", and the "Server Side
+ * Public License v 1"; you may not use this file except in compliance with, at
+ * your election, the "Elastic License 2.0", the "GNU Affero General Public
+ * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
 package org.elasticsearch.ingest.common;
 
 import org.elasticsearch.ingest.AbstractProcessor;
 import org.elasticsearch.ingest.ConfigurationUtils;
-import org.elasticsearch.ingest.ConfigurationUtils;
 import org.elasticsearch.ingest.IngestDocument;
 import org.elasticsearch.ingest.Processor;
-import org.elasticsearch.ingest.TemplateService;
 import org.elasticsearch.ingest.ValueSource;
+import org.elasticsearch.script.Script;
+import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.script.TemplateScript;
 
 import java.util.Map;
 
@@ -38,16 +29,18 @@ public final class AppendProcessor extends AbstractProcessor {
 
     public static final String TYPE = "append";
 
-    private final TemplateService.Template field;
+    private final TemplateScript.Factory field;
     private final ValueSource value;
+    private final boolean allowDuplicates;
 
-    AppendProcessor(String tag, TemplateService.Template field, ValueSource value) {
-        super(tag);
+    AppendProcessor(String tag, String description, TemplateScript.Factory field, ValueSource value, boolean allowDuplicates) {
+        super(tag, description);
         this.field = field;
         this.value = value;
+        this.allowDuplicates = allowDuplicates;
     }
 
-    public TemplateService.Template getField() {
+    public TemplateScript.Factory getField() {
         return field;
     }
 
@@ -56,8 +49,10 @@ public final class AppendProcessor extends AbstractProcessor {
     }
 
     @Override
-    public void execute(IngestDocument ingestDocument) throws Exception {
-        ingestDocument.appendFieldValue(field, value);
+    public IngestDocument execute(IngestDocument document) throws Exception {
+        String path = document.renderTemplate(field);
+        document.appendFieldValue(path, value, allowDuplicates);
+        return document;
     }
 
     @Override
@@ -67,20 +62,31 @@ public final class AppendProcessor extends AbstractProcessor {
 
     public static final class Factory implements Processor.Factory {
 
-        private final TemplateService templateService;
+        private final ScriptService scriptService;
 
-        public Factory(TemplateService templateService) {
-            this.templateService = templateService;
+        public Factory(ScriptService scriptService) {
+            this.scriptService = scriptService;
         }
 
         @Override
-        public AppendProcessor create(Map<String, Processor.Factory> registry, String processorTag,
-                                      Map<String, Object> config) throws Exception {
+        public AppendProcessor create(
+            Map<String, Processor.Factory> registry,
+            String processorTag,
+            String description,
+            Map<String, Object> config
+        ) throws Exception {
             String field = ConfigurationUtils.readStringProperty(TYPE, processorTag, config, "field");
             Object value = ConfigurationUtils.readObject(TYPE, processorTag, config, "value");
-            TemplateService.Template compiledTemplate = ConfigurationUtils.compileTemplate(TYPE, processorTag,
-                "field", field, templateService);
-            return new AppendProcessor(processorTag, compiledTemplate, ValueSource.wrap(value, templateService));
+            boolean allowDuplicates = ConfigurationUtils.readBooleanProperty(TYPE, processorTag, config, "allow_duplicates", true);
+            TemplateScript.Factory compiledTemplate = ConfigurationUtils.compileTemplate(TYPE, processorTag, "field", field, scriptService);
+            String mediaType = ConfigurationUtils.readMediaTypeProperty(TYPE, processorTag, config, "media_type", "application/json");
+            return new AppendProcessor(
+                processorTag,
+                description,
+                compiledTemplate,
+                ValueSource.wrap(value, scriptService, Map.of(Script.CONTENT_TYPE_OPTION, mediaType)),
+                allowDuplicates
+            );
         }
     }
 }

@@ -1,20 +1,10 @@
 #
-# Licensed to Elasticsearch under one or more contributor
-# license agreements. See the NOTICE file distributed with
-# this work for additional information regarding copyright
-# ownership. Elasticsearch licenses this file to you under
-# the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
+ # Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+ # or more contributor license agreements. Licensed under the "Elastic License
+ # 2.0", the "GNU Affero General Public License v3.0 only", and the "Server Side
+ # Public License v 1"; you may not use this file except in compliance with, at
+ # your election, the "Elastic License 2.0", the "GNU Affero General Public
+ # License v3.0 only", or the "Server Side Public License, v 1".
 #
 
 #
@@ -24,16 +14,16 @@
 
 #### Classes
 
-class Clock -> java.time.Clock extends Object {
+class java.time.Clock {
   Clock fixed(Instant,ZoneId)
-  ZoneId getZone()
-  Instant instant()
-  long millis()
-  Clock offset(Clock,Duration)
-  Clock tick(Clock,Duration)
+  ZoneId getZone() @nondeterministic
+  Instant instant() @nondeterministic
+  long millis() @nondeterministic
+  Clock offset(Clock,Duration) @nondeterministic
+  Clock tick(Clock,Duration) @nondeterministic
 }
 
-class Duration -> java.time.Duration extends Comparable,TemporalAmount,Object {
+class java.time.Duration {
   Duration ZERO
   Duration abs()
   Duration between(Temporal,Temporal)
@@ -57,7 +47,7 @@ class Duration -> java.time.Duration extends Comparable,TemporalAmount,Object {
   Duration of(long,TemporalUnit)
   Duration ofDays(long)
   Duration ofHours(long)
-  Duration ofMillis(long) 
+  Duration ofMillis(long)
   Duration ofMinutes(long)
   Duration ofNanos(long)
   Duration ofSeconds(long)
@@ -80,7 +70,7 @@ class Duration -> java.time.Duration extends Comparable,TemporalAmount,Object {
   Duration withNanos(int)
 }
 
-class Instant -> java.time.Instant extends Comparable,Temporal,TemporalAccessor,TemporalAdjuster,Object {
+class java.time.Instant {
   Instant EPOCH
   Instant MAX
   Instant MIN
@@ -112,7 +102,7 @@ class Instant -> java.time.Instant extends Comparable,Temporal,TemporalAccessor,
   Instant with(TemporalField,long)
 }
 
-class LocalDate -> java.time.LocalDate extends ChronoLocalDate,Temporal,TemporalAccessor,TemporalAdjuster,Comparable,Object {
+class java.time.LocalDate {
   LocalDate MAX
   LocalDate MIN
   LocalDateTime atStartOfDay()
@@ -155,7 +145,7 @@ class LocalDate -> java.time.LocalDate extends ChronoLocalDate,Temporal,Temporal
   LocalDate withYear(int)
 }
 
-class LocalDateTime -> java.time.LocalDateTime extends ChronoLocalDateTime,Temporal,TemporalAccessor,TemporalAdjuster,Comparable,Object {
+class java.time.LocalDateTime {
   LocalDateTime MIN
   LocalDateTime MAX
   OffsetDateTime atOffset(ZoneOffset)
@@ -212,7 +202,7 @@ class LocalDateTime -> java.time.LocalDateTime extends ChronoLocalDateTime,Tempo
   LocalDateTime withYear(int)
 }
 
-class LocalTime -> java.time.LocalTime extends Temporal,TemporalAccessor,TemporalAdjuster,Comparable,Object {
+class java.time.LocalTime {
   LocalTime MAX
   LocalTime MIDNIGHT
   LocalTime MIN
@@ -258,7 +248,7 @@ class LocalTime -> java.time.LocalTime extends Temporal,TemporalAccessor,Tempora
   LocalTime withSecond(int)
 }
 
-class MonthDay -> java.time.MonthDay extends TemporalAccessor,TemporalAdjuster,Comparable,Object {
+class java.time.MonthDay {
   LocalDate atYear(int)
   int compareTo(MonthDay)
   String format(DateTimeFormatter)
@@ -270,14 +260,14 @@ class MonthDay -> java.time.MonthDay extends TemporalAccessor,TemporalAdjuster,C
   boolean isBefore(MonthDay)
   boolean isValidYear(int)
   MonthDay of(int,int)
-  MonthDay parse(CharSequence)   
+  MonthDay parse(CharSequence)
   MonthDay parse(CharSequence,DateTimeFormatter)
   MonthDay with(Month)
   MonthDay withDayOfMonth(int)
   MonthDay withMonth(int)
 }
 
-class OffsetDateTime -> java.time.OffsetDateTime extends Temporal,TemporalAccessor,TemporalAdjuster,Comparable,Object {
+class java.time.OffsetDateTime {
   OffsetDateTime MAX
   OffsetDateTime MIN
   ZonedDateTime atZoneSameInstant(ZoneId)
@@ -348,7 +338,7 @@ class OffsetDateTime -> java.time.OffsetDateTime extends Temporal,TemporalAccess
   OffsetDateTime withOffsetSameInstant(ZoneOffset)
 }
 
-class OffsetTime -> java.time.OffsetTime extends Temporal,TemporalAccessor,TemporalAdjuster,Comparable,Object {
+class java.time.OffsetTime {
   OffsetTime MAX
   OffsetTime MIN
   int compareTo(OffsetTime)
@@ -391,7 +381,7 @@ class OffsetTime -> java.time.OffsetTime extends Temporal,TemporalAccessor,Tempo
   OffsetTime withSecond(int)
 }
 
-class Period -> java.time.Period extends ChronoPeriod,TemporalAmount,Object {
+class java.time.Period {
   Period ZERO
   Period between(LocalDate,LocalDate)
   Period from(TemporalAmount)
@@ -422,7 +412,7 @@ class Period -> java.time.Period extends ChronoPeriod,TemporalAmount,Object {
   Period withYears(int)
 }
 
-class Year -> java.time.Year extends Temporal,TemporalAccessor,TemporalAdjuster,Comparable,Object {
+class java.time.Year {
   int MAX_VALUE
   int MIN_VALUE
   LocalDate atDay(int)
@@ -450,7 +440,7 @@ class Year -> java.time.Year extends Temporal,TemporalAccessor,TemporalAdjuster,
   Year with(TemporalField,long)
 }
 
-class YearMonth -> java.time.YearMonth extends Temporal,TemporalAccessor,TemporalAdjuster,Comparable,Object {
+class java.time.YearMonth {
   LocalDate atDay(int)
   LocalDate atEndOfMonth()
   int compareTo(YearMonth)
@@ -482,9 +472,24 @@ class YearMonth -> java.time.YearMonth extends Temporal,TemporalAccessor,Tempora
   YearMonth withMonth(int)
 }
 
-class ZonedDateTime -> java.time.ZonedDateTime extends ChronoZonedDateTime,Temporal,TemporalAccessor,Comparable,Object {
+class java.time.ZonedDateTime {
   int getDayOfMonth()
   DayOfWeek getDayOfWeek()
+  DayOfWeek org.elasticsearch.painless.api.Augmentation getDayOfWeekEnum()
+  int org.elasticsearch.painless.api.Augmentation getCenturyOfEra()
+  int org.elasticsearch.painless.api.Augmentation getEra()
+  int org.elasticsearch.painless.api.Augmentation getHourOfDay()
+  int org.elasticsearch.painless.api.Augmentation getMillisOfDay()
+  int org.elasticsearch.painless.api.Augmentation getMillisOfSecond()
+  int org.elasticsearch.painless.api.Augmentation getMinuteOfDay()
+  int org.elasticsearch.painless.api.Augmentation getMinuteOfHour()
+  int org.elasticsearch.painless.api.Augmentation getMonthOfYear()
+  int org.elasticsearch.painless.api.Augmentation getSecondOfDay()
+  int org.elasticsearch.painless.api.Augmentation getSecondOfMinute()
+  int org.elasticsearch.painless.api.Augmentation getWeekOfWeekyear()
+  int org.elasticsearch.painless.api.Augmentation getWeekyear()
+  int org.elasticsearch.painless.api.Augmentation getYearOfCentury()
+  int org.elasticsearch.painless.api.Augmentation getYearOfEra()
   int getDayOfYear()
   int getHour()
   LocalDate toLocalDate()
@@ -544,7 +549,7 @@ class ZonedDateTime -> java.time.ZonedDateTime extends ChronoZonedDateTime,Tempo
   ZonedDateTime withZoneSameInstant(ZoneId)
 }
 
-class ZoneId -> java.time.ZoneId extends Object {
+class java.time.ZoneId {
   Map SHORT_IDS
   Set getAvailableZoneIds()
   ZoneId of(String)
@@ -558,7 +563,7 @@ class ZoneId -> java.time.ZoneId extends Object {
   ZoneRules getRules()
 }
 
-class ZoneOffset -> java.time.ZoneOffset extends ZoneId,Object {
+class java.time.ZoneOffset {
   ZoneOffset MAX
   ZoneOffset MIN
   ZoneOffset UTC
@@ -573,7 +578,7 @@ class ZoneOffset -> java.time.ZoneOffset extends ZoneId,Object {
 
 #### Enums
 
-class DayOfWeek -> java.time.DayOfWeek extends Enum,TemporalAccessor,TemporalAdjuster,Comparable,Object {
+class java.time.DayOfWeek {
   DayOfWeek FRIDAY
   DayOfWeek MONDAY
   DayOfWeek SATURDAY
@@ -591,7 +596,7 @@ class DayOfWeek -> java.time.DayOfWeek extends Enum,TemporalAccessor,TemporalAdj
   DayOfWeek[] values()
 }
 
-class Month -> java.time.Month extends Enum,TemporalAccessor,TemporalAdjuster,Comparable,Object {
+class java.time.Month {
   Month APRIL
   Month AUGUST
   Month DECEMBER
@@ -621,7 +626,7 @@ class Month -> java.time.Month extends Enum,TemporalAccessor,TemporalAdjuster,Co
 
 #### Exceptions
 
-class DateTimeException -> java.time.DateTimeException extends RuntimeException,Exception,Object {
-  DateTimeException <init>(String)
+class java.time.DateTimeException {
+  (String)
 }
 

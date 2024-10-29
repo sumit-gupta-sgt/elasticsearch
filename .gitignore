@@ -5,11 +5,24 @@
 *.ipr
 *.iws
 build-idea/
+# Eclipse and Intellij put there build files in "out"
+out/
+
+# include shared intellij config
+!.idea/eclipseCodeFormatter.xml
+!.idea/externalDependencies.xml
+!.idea/inspectionProfiles/Project_Default.xml
+!.idea/runConfigurations/
+!.idea/scopes/x_pack.xml
+
+# These files are generated in the main tree by IntelliJ
+benchmarks/src/main/generated/*
 
 # eclipse files
 .project
 .classpath
 .settings
+# We don't use this any more, but we'll keep it around in gitignore for a while so we don't accidentally commit it
 build-eclipse/
 
 # netbeans files
@@ -20,15 +33,11 @@ nbactions.xml
 .gradle/
 build/
 
-# gradle wrapper 
-/gradle/
-gradlew
-gradlew.bat
+# vscode stuff
+.vscode/
 
-# maven stuff (to be removed when trunk becomes 4.x)
-*-execution-hints.log
-target/
-dependency-reduced-pom.xml
+# vs stuff
+.vs/
 
 # testing stuff
 **/.local*
@@ -49,3 +58,14 @@ html_docs
 /tmp/
 eclipse-build
 
+# projects using testfixtures
+testfixtures_shared/
+
+# These are generated from .ci/jobs.t, .ci/templates.t and .ci/views.t
+.ci/jobs/
+.ci/templates/
+.ci/views/
+
+# Generated
+checkstyle_ide.xml
+x-pack/plugin/esql/src/main/generated-src/generated/

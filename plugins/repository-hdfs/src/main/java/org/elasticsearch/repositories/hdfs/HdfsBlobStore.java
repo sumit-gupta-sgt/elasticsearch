@@ -1,20 +1,10 @@
 /*
- * Licensed to Elasticsearch under one or more contributor
- * license agreements. See the NOTICE file distributed with
- * this work for additional information regarding copyright
- * ownership. Elasticsearch licenses this file to you under
- * the Apache License, Version 2.0 (the "License"); you may
- * not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+ * or more contributor license agreements. Licensed under the "Elastic License
+ * 2.0", the "GNU Affero General Public License v3.0 only", and the "Server Side
+ * Public License v 1"; you may not use this file except in compliance with, at
+ * your election, the "Elastic License 2.0", the "GNU Affero General Public
+ * License v3.0 only", or the "Server Side Public License, v 1".
  */
 package org.elasticsearch.repositories.hdfs;
 
@@ -23,49 +13,51 @@ import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.Path;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.blobstore.BlobContainer;
 import org.elasticsearch.common.blobstore.BlobPath;
 import org.elasticsearch.common.blobstore.BlobStore;
+import org.elasticsearch.common.blobstore.OperationPurpose;
 
 import java.io.IOException;
-import java.lang.reflect.ReflectPermission;
-import java.net.SocketPermission;
-import java.security.AccessController;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-
-import javax.security.auth.AuthPermission;
+import java.util.Iterator;
 
 final class HdfsBlobStore implements BlobStore {
 
     private final Path root;
     private final FileContext fileContext;
+    private final HdfsSecurityContext securityContext;
     private final int bufferSize;
+    private final boolean readOnly;
+    private final Short replicationFactor;
     private volatile boolean closed;
 
-    HdfsBlobStore(FileContext fileContext, String path, int bufferSize) throws IOException {
+    HdfsBlobStore(FileContext fileContext, String path, int bufferSize, boolean readOnly) throws IOException {
+        this(fileContext, path, bufferSize, readOnly, false, null);
+    }
+
+    HdfsBlobStore(FileContext fileContext, String path, int bufferSize, boolean readOnly, boolean haEnabled, Short replicationFactor)
+        throws IOException {
         this.fileContext = fileContext;
+        // Only restrict permissions if not running with HA
+        boolean restrictPermissions = (haEnabled == false);
+        this.securityContext = new HdfsSecurityContext(fileContext.getUgi(), restrictPermissions);
         this.bufferSize = bufferSize;
+        this.replicationFactor = replicationFactor;
         this.root = execute(fileContext1 -> fileContext1.makeQualified(new Path(path)));
-        try {
-            mkdirs(root);
-        } catch (FileAlreadyExistsException ok) {
-            // behaves like Files.createDirectories
+        this.readOnly = readOnly;
+        if (readOnly == false) {
+            try {
+                mkdirs(root);
+            } catch (FileAlreadyExistsException ok) {
+                // behaves like Files.createDirectories
+            }
         }
     }
 
+    @SuppressWarnings("HiddenField")
     private void mkdirs(Path path) throws IOException {
         execute((Operation<Void>) fileContext -> {
             fileContext.mkdir(path, null, true);
-            return null;
-        });
-    }
-
-    @Override
-    public void delete(BlobPath path) throws IOException {
-        execute((Operation<Void>) fc -> {
-            fc.delete(translateToHdfsPath(path), true);
             return null;
         });
     }
@@ -77,24 +69,31 @@ final class HdfsBlobStore implements BlobStore {
 
     @Override
     public BlobContainer blobContainer(BlobPath path) {
-        return new HdfsBlobContainer(path, this, buildHdfsPath(path), bufferSize);
+        return new HdfsBlobContainer(path, this, buildHdfsPath(path), bufferSize, securityContext, replicationFactor);
+    }
+
+    @Override
+    public void deleteBlobsIgnoringIfNotExists(OperationPurpose purpose, Iterator<String> blobNames) throws IOException {
+        throw new UnsupportedOperationException("Bulk deletes are not supported in Hdfs repositories");
     }
 
     private Path buildHdfsPath(BlobPath blobPath) {
         final Path path = translateToHdfsPath(blobPath);
-        try {
-            mkdirs(path);
-        } catch (FileAlreadyExistsException ok) {
-            // behaves like Files.createDirectories
-        } catch (IOException ex) {
-            throw new ElasticsearchException("failed to create blob container", ex);
+        if (readOnly == false) {
+            try {
+                mkdirs(path);
+            } catch (FileAlreadyExistsException ok) {
+                // behaves like Files.createDirectories
+            } catch (IOException ex) {
+                throw new ElasticsearchException("failed to create blob container", ex);
+            }
         }
         return path;
     }
 
     private Path translateToHdfsPath(BlobPath blobPath) {
         Path path = root;
-        for (String p : blobPath) {
+        for (String p : blobPath.parts()) {
             path = new Path(path, p);
         }
         return path;
@@ -107,21 +106,14 @@ final class HdfsBlobStore implements BlobStore {
     /**
      * Executes the provided operation against this store
      */
-    // we can do FS ops with only two elevated permissions:
-    // 1) hadoop dynamic proxy is messy with access rules
-    // 2) allow hadoop to add credentials to our Subject
     <V> V execute(Operation<V> operation) throws IOException {
-        SpecialPermission.check();
         if (closed) {
             throw new AlreadyClosedException("HdfsBlobStore is closed: " + this);
         }
-        try {
-            return AccessController.doPrivileged((PrivilegedExceptionAction<V>)
-                    () -> operation.run(fileContext), null, new ReflectPermission("suppressAccessChecks"),
-                     new AuthPermission("modifyPrivateCredentials"), new SocketPermission("*", "connect"));
-        } catch (PrivilegedActionException pae) {
-            throw (IOException) pae.getException();
-        }
+        return securityContext.doPrivilegedOrThrow(() -> {
+            securityContext.ensureLogin();
+            return operation.run(fileContext);
+        });
     }
 
     @Override

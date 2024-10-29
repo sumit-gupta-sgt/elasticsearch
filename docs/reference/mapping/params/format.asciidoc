@@ -9,48 +9,51 @@ Besides the <<built-in-date-formats,built-in formats>>, your own
 <<custom-date-formats,custom formats>> can be specified using the familiar
 `yyyy/MM/dd` syntax:
 
-[source,js]
+[source,console]
 --------------------------------------------------
-PUT my_index
+PUT my-index-000001
 {
   "mappings": {
-    "my_type": {
-      "properties": {
-        "date": {
-          "type":   "date",
-          "format": "yyyy-MM-dd"
-        }
+    "properties": {
+      "date": {
+        "type":   "date",
+        "format": "yyyy-MM-dd"
       }
     }
   }
 }
 --------------------------------------------------
-// CONSOLE
 
 Many APIs which support date values also support <<date-math,date math>>
 expressions, such as `now-1m/d` -- the current time, minus one month, rounded
 down to the nearest day.
 
-TIP: The `format` setting must have the same setting for fields of the same
-name in the same index.  Its value can be updated on existing fields using the
-<<indices-put-mapping,PUT mapping API>>.
-
-
 [[custom-date-formats]]
 ==== Custom date formats
 
-Completely customizable date formats are supported.  The syntax for these is explained
-http://www.joda.org/joda-time/apidocs/org/joda/time/format/DateTimeFormat.html[in the Joda docs].
+Completely customizable date formats are supported. The syntax for these is explained in
+https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/time/format/DateTimeFormatter.html[DateTimeFormatter docs].
+
+Note that while the built-in formats for week dates use the ISO definition of weekyears,
+custom formatters using the `Y`, `W`, or `w` field specifiers use the JDK locale definition
+of weekyears. This can result in different values between the built-in formats and custom formats
+for week dates.
 
 [[built-in-date-formats]]
-==== Built In Formats
+==== Built-in formats
 
-Most of the below dates have a `strict` companion dates, which means, that
-year, month and day parts of the week must have prepending zeros in order
-to be valid. This means, that a date like `5/11/1` would not be valid, but
-you would need to specify the full date, which would be `2005/11/01` in this
-example. So instead of `date_optional_time` you would need to specify
-`strict_date_optional_time`.
+Most of the below formats have a `strict` companion format, which means that
+year, month and day parts of the month must use respectively 4, 2 and 2 digits
+exactly, potentially prepending zeros. For instance a date like `5/11/1` would
+be considered invalid and would need to be rewritten to `2005/11/01` to be
+accepted by the date parser.
+
+To use them, you need to prepend `strict_` to the name of the date format, for
+instance `strict_date_optional_time` instead of `date_optional_time`.
+
+These strict date formats are especially useful when
+<<date-detection,date fields are dynamically mapped>> in order to make sure to
+not accidentally map irrelevant strings as dates.
 
 The following tables lists all the defaults ISO formats supported:
 
@@ -68,9 +71,21 @@ The following tables lists all the defaults ISO formats supported:
 
 [[strict-date-time]]`date_optional_time` or `strict_date_optional_time`::
 
-    A generic ISO datetime parser where the date is mandatory and the time is
-    optional.
-    http://www.joda.org/joda-time/apidocs/org/joda/time/format/ISODateTimeFormat.html#dateOptionalTimeParser--[Full details here].
+    A generic ISO datetime parser, where the date must include the year at a minimum, and the time
+    (separated by `T`), is optional.
+    Examples: `yyyy-MM-dd'T'HH:mm:ss.SSSZ` or  `yyyy-MM-dd`.
+
+    NOTE: When using `date_optional_time`, the parsing is lenient and will attempt to parse
+    numbers as a year (e.g. `292278994` will be parsed as a year). This can lead to unexpected results
+    when paired with a numeric focused format like `epoch_second` and `epoch_millis`.
+    It is recommended you use `strict_date_optional_time` when pairing with a numeric focused format.
+
+[[strict-date-time-nanos]]`strict_date_optional_time_nanos`::
+
+    A generic ISO datetime parser, where the date must include the year at a minimum, and the time
+    (separated by `T`), is optional. The fraction of a second
+    part has a nanosecond resolution.
+    Examples: `yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ` or  `yyyy-MM-dd`.
 
 `basic_date`::
 
@@ -174,13 +189,13 @@ The following tables lists all the defaults ISO formats supported:
 
 `date_time` or `strict_date_time`::
 
-    A formatter that combines a full date and time, separated by a 'T': 
-    `yyyy-MM-dd'T'HH:mm:ss.SSSZZ`.
+    A formatter that combines a full date and time, separated by a 'T':
+    `yyyy-MM-dd'T'HH:mm:ss.SSSZ`.
 
 `date_time_no_millis` or `strict_date_time_no_millis`::
 
     A formatter that combines a full date and time without millis, separated
-    by a 'T': `yyyy-MM-dd'T'HH:mm:ssZZ`.
+    by a 'T': `yyyy-MM-dd'T'HH:mm:ssZ`.
 
 `hour` or `strict_hour`::
 
@@ -214,63 +229,69 @@ The following tables lists all the defaults ISO formats supported:
 `ordinal_date_time` or `strict_ordinal_date_time`::
 
     A formatter for a full ordinal date and time, using a four digit year and
-    three digit dayOfYear: `yyyy-DDD'T'HH:mm:ss.SSSZZ`.
+    three digit dayOfYear: `yyyy-DDD'T'HH:mm:ss.SSSZ`.
 
 `ordinal_date_time_no_millis` or `strict_ordinal_date_time_no_millis`::
 
     A formatter for a full ordinal date and time without millis, using a four
-    digit year and three digit dayOfYear: `yyyy-DDD'T'HH:mm:ssZZ`.
+    digit year and three digit dayOfYear: `yyyy-DDD'T'HH:mm:ssZ`.
 
 `time` or `strict_time`::
 
     A formatter for a two digit hour of day, two digit minute of hour, two
     digit second of minute, three digit fraction of second, and time zone
-    offset: `HH:mm:ss.SSSZZ`.
+    offset: `HH:mm:ss.SSSZ`.
 
 `time_no_millis` or `strict_time_no_millis`::
 
     A formatter for a two digit hour of day, two digit minute of hour, two
-    digit second of minute, and time zone offset: `HH:mm:ssZZ`.
+    digit second of minute, and time zone offset: `HH:mm:ssZ`.
 
 `t_time` or `strict_t_time`::
 
     A formatter for a two digit hour of day, two digit minute of hour, two
     digit second of minute, three digit fraction of second, and time zone
-    offset prefixed by 'T': `'T'HH:mm:ss.SSSZZ`.
+    offset prefixed by 'T': `'T'HH:mm:ss.SSSZ`.
 
 `t_time_no_millis` or `strict_t_time_no_millis`::
 
     A formatter for a two digit hour of day, two digit minute of hour, two
-    digit second of minute, and time zone offset prefixed by 'T': `'T'HH:mm:ssZZ`.
+    digit second of minute, and time zone offset prefixed by 'T': `'T'HH:mm:ssZ`.
 
 `week_date` or `strict_week_date`::
 
     A formatter for a full date as four digit weekyear, two digit week of
-    weekyear, and one digit day of week: `xxxx-'W'ww-e`.
+    weekyear, and one digit day of week: `YYYY-'W'ww-e`.
+    This uses the ISO week-date definition.
 
 `week_date_time` or `strict_week_date_time`::
 
     A formatter that combines a full weekyear date and time, separated by a
-    'T': `xxxx-'W'ww-e'T'HH:mm:ss.SSSZZ`.
+    'T': `YYYY-'W'ww-e'T'HH:mm:ss.SSSZ`.
+    This uses the ISO week-date definition.
 
 `week_date_time_no_millis` or `strict_week_date_time_no_millis`::
 
     A formatter that combines a full weekyear date and time without millis,
-    separated by a 'T': `xxxx-'W'ww-e'T'HH:mm:ssZZ`.
+    separated by a 'T': `YYYY-'W'ww-e'T'HH:mm:ssZ`.
+    This uses the ISO week-date definition.
 
 `weekyear` or `strict_weekyear`::
 
-    A formatter for a four digit weekyear: `xxxx`.
+    A formatter for a four digit weekyear: `YYYY`.
+    This uses the ISO week-date definition.
 
 `weekyear_week` or `strict_weekyear_week`::
 
     A formatter for a four digit weekyear and two digit week of weekyear:
-    `xxxx-'W'ww`.
+    `YYYY-'W'ww`.
+    This uses the ISO week-date definition.
 
 `weekyear_week_day` or `strict_weekyear_week_day`::
 
     A formatter for a four digit weekyear, two digit week of weekyear, and one
-    digit day of week: `xxxx-'W'ww-e`.
+    digit day of week: `YYYY-'W'ww-e`.
+    This uses the ISO week-date definition.
 
 `year` or `strict_year`::
 
@@ -284,4 +305,3 @@ The following tables lists all the defaults ISO formats supported:
 
     A formatter for a four digit year, two digit month of year, and two digit
     day of month: `yyyy-MM-dd`.
-
